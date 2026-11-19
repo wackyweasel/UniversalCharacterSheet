@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { CardTableCard, Character, CharacterEvent, CharacterEventEffect, InventoryItem, NumericTargetReference, Sheet, Widget, WidgetType } from '../types';
 import { RUN_EVENT_KIND } from '../events/constants';
-import { mapSteps, normalizeEvent, normalizeEvents, type StoredCharacterEvent } from '../events/steps';
+import { copyStepsWithFreshIds, normalizeEvent, normalizeEvents, type StoredCharacterEvent } from '../events/steps';
 import { numericTargetKey } from './numericTargets';
 import { copyVariableData } from './variableGroups';
 import { copyCompendiumData } from './compendium';
@@ -147,23 +147,19 @@ export function migrateCharacter(character: Character): Character {
 export function remapEventIds(events: StoredCharacterEvent[], widgetIdMap: Map<string, string>): CharacterEvent[] {
   const remap = (widgetId: string | undefined) => (widgetId ? widgetIdMap.get(widgetId) ?? widgetId : widgetId);
   const eventIdMap = new Map(events.map((event) => [event.id, uuidv4()]));
-  const remapEffects = (effects: CharacterEventEffect[]) => effects.map((effect) => ({
+  const remapEffect = (effect: CharacterEventEffect, id: string): CharacterEventEffect => ({
     ...effect,
-    id: uuidv4(),
+    id,
     widgetId: remap(effect.widgetId),
     ...(effect.kind === RUN_EVENT_KIND && effect.target ? { target: eventIdMap.get(effect.target) ?? effect.target } : {}),
     params: effect.params ? { ...effect.params } : undefined,
-  }));
+  });
+  // Normalizing gives ids to what has none, so it is done once and the result is what gets copied.
   return events.map(normalizeEvent).map((event, index) => ({
     ...event,
     id: eventIdMap.get(events[index].id)!,
     trigger: { ...event.trigger, widgetId: remap(event.trigger.widgetId), params: event.trigger.params ? { ...event.trigger.params } : undefined },
-    steps: mapSteps(event.steps, (step) => ({
-      ...step,
-      id: uuidv4(),
-      effects: remapEffects(step.effects),
-      ...(step.otherwise ? { otherwise: remapEffects(step.otherwise) } : {}),
-    })),
+    steps: copyStepsWithFreshIds(event.steps, remapEffect),
   }));
 }
 

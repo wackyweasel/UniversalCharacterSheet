@@ -3,13 +3,16 @@ import {
   Background,
   BaseEdge,
   Controls,
+  EdgeLabelRenderer,
   Handle,
   Position,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
+  useStore,
   useUpdateNodeInternals,
   ViewportPortal,
+  type Connection,
   type Edge,
   type EdgeProps,
   type Node,
@@ -20,16 +23,21 @@ import {
 import '@xyflow/react/dist/style.css';
 import type { Character } from '../../types';
 import type { EventDraft } from '../../events/editorDraft';
+import { jumpCurve } from '../../events/jumpCurve';
 import {
   findEffect,
   findStep,
   GRAPH_SIZES,
   isSlotBeside,
+  parseRollBranch,
+  type BranchSection,
   type EffectLocation,
   type EventGraph,
   type GraphDirection,
   type GraphEdge,
+  type GraphJumpSource,
   type GraphNode,
+  type GraphSide,
   type GraphSlot,
 } from '../../events/graph';
 import { findWidget } from '../../events/helpers';
@@ -53,6 +61,8 @@ type AddKind = 'effect' | 'condition' | 'end';
 
 interface GraphUi {
   direction: GraphDirection;
+  /** Where every node is, for a jump to go around them. */
+  nodes: GraphNode[];
   /** Link whose "+" a dragged effect would drop on. */
   dropEdgeId: string | null;
   /** Where the effect being dragged comes from. */
@@ -60,9 +70,25 @@ interface GraphUi {
   menuEdgeId: string | null;
   onPlus: (link: GraphEdge, button: HTMLElement) => void;
   onAdd: (slot: GraphSlot, kind: AddKind) => void;
+  /** Whether a link can be dragged from this handle of a node to make a side jump. */
+  canJumpFrom: (nodeId: string, handle?: GraphSide) => boolean;
+  /** Whether the jump being dragged can land on the node. */
+  isJumpTarget: (nodeId: string) => boolean;
+  onRemoveJump: (link: GraphEdge) => void;
 }
 
-const GraphUiContext = createContext<GraphUi>({ direction: 'down', dropEdgeId: null, dragFrom: null, menuEdgeId: null, onPlus: () => {}, onAdd: () => {} });
+const GraphUiContext = createContext<GraphUi>({
+  direction: 'down',
+  nodes: [],
+  dropEdgeId: null,
+  dragFrom: null,
+  menuEdgeId: null,
+  onPlus: () => {},
+  onAdd: () => {},
+  canJumpFrom: () => false,
+  isJumpTarget: () => false,
+  onRemoveJump: () => {},
+});
 
 /** The edges of a node that links use: where the flow comes in, where it goes on, and where a condition's "no" side leaves. */
 const PORTS = {
@@ -83,23 +109,53 @@ const MIN_START_ZOOM = 0.85;
 const ADD_HINT = 'Add an effect, a condition or an end here';
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+const JUMP_HINT = 'Drag to any step to jump there';
+const REMOVE_JUMP_HINT = 'Remove this jump';
+
+/** Where a link can be dropped on a node: all over it, but only while a jump is being dragged that can land there. */
+function DropHandle({ nodeId, entry }: { nodeId: string; entry: Position }) {
+  const ui = useContext(GraphUiContext);
+  return <Handle type="target" position={entry} isConnectable={ui.isJumpTarget(nodeId)} isConnectableStart={false} className="event-handle--drop" />;
+}
+
 function CardNode({ data }: NodeProps<FlowNode>) {
+  const ui = useContext(GraphUiContext);
   const ports = usePorts();
   const { graph, pill, tone, icon, text, blank, problem } = data;
   const isCondition = graph.kind === 'condition';
+  const branches = isCondition || !!graph.branchStepId;
+  const exitId: GraphSide | undefined = branches ? 'yes' : undefined;
+  const exitJump = ui.canJumpFrom(graph.id, exitId);
+  const sideJump = branches && ui.canJumpFrom(graph.id, 'no');
   return (
     <div
-      className={`event-node event-node--${graph.kind} ${graph.kind === 'effect' && graph.side === 'no' ? 'event-node--otherwise' : ''} ${problem ? 'event-node--problem' : ''}`}
+      className={`event-node event-node--${graph.kind} ${graph.kind === 'effect' && graph.side === 'no' ? 'event-node--otherwise' : ''} ${problem ? 'event-node--problem' : ''} ${ui.isJumpTarget(graph.id) ? 'event-node--landing' : ''}`}
       title={problem}
     >
-      {graph.kind !== 'trigger' && <Handle type="target" position={ports.entry} isConnectable={false} />}
+      {graph.kind !== 'trigger' && <DropHandle nodeId={graph.id} entry={ports.entry} />}
       <span className="event-node__icon" aria-hidden="true">{problem ? '⚠️' : icon}</span>
       <span className="min-w-0 flex-1">
         <span className={`event-flow__pill event-flow__pill--${tone} event-node__pill`}>{pill}</span>
         <span className={`event-node__text ${blank ? 'event-node__text--blank' : isCondition ? 'event-node__text--formula' : ''}`}>{text}</span>
       </span>
-      <Handle type="source" position={ports.exit} id={isCondition ? 'yes' : undefined} isConnectable={false} />
-      {isCondition && <Handle type="source" position={ports.side} id="no" isConnectable={false} />}
+      <Handle
+        type="source"
+        position={ports.exit}
+        id={exitId}
+        isConnectable={exitJump}
+        className={exitJump ? 'event-handle--jump' : undefined}
+        title={exitJump ? JUMP_HINT : undefined}
+      />
+      {branches && (
+        <Handle
+          type="source"
+          position={ports.side}
+          id="no"
+          isConnectable={sideJump}
+          className={sideJump ? 'event-handle--jump' : undefined}
+          title={sideJump ? JUMP_HINT : undefined}
+        />
+      )}
     </div>
   );
 }
@@ -126,23 +182,35 @@ function AddNode({ data }: NodeProps<FlowNode>) {
   );
 }
 
-function JoinNode() {
+function JoinNode({ id }: NodeProps<FlowNode>) {
+  const ui = useContext(GraphUiContext);
   const ports = usePorts();
+  const jump = ui.canJumpFrom(id);
   return (
     <div className="event-node-join">
       <Handle type="target" position={ports.entry} id="top" isConnectable={false} />
       <Handle type="target" position={ports.side} id="side" isConnectable={false} />
-      <Handle type="source" position={ports.exit} isConnectable={false} />
+      <Handle
+        type="source"
+        position={ports.exit}
+        isConnectable={jump}
+        className={jump ? 'event-handle--jump event-handle--center' : undefined}
+        title={jump ? JUMP_HINT : undefined}
+      />
     </div>
   );
 }
 
-function EndNode({ data }: NodeProps<FlowNode>) {
+function EndNode({ id, data }: NodeProps<FlowNode>) {
+  const ui = useContext(GraphUiContext);
   const ports = usePorts();
   const stops = data.graph.kind === 'stop';
   return (
-    <div className={`event-node-end ${stops ? 'event-node-end--stop' : ''}`} title={stops ? 'The event stops here when the condition is false' : undefined}>
-      <Handle type="target" position={ports.entry} isConnectable={false} />
+    <div
+      className={`event-node-end ${stops ? 'event-node-end--stop' : ''} ${ui.isJumpTarget(id) ? 'event-node--landing' : ''}`}
+      title={stops ? 'The event stops here when the condition is false' : undefined}
+    >
+      {stops ? <Handle type="target" position={ports.entry} isConnectable={false} /> : <DropHandle nodeId={id} entry={ports.entry} />}
       {stops ? 'Stop' : 'End'}
     </div>
   );
@@ -171,14 +239,36 @@ function LinkEdge({ id, sourceX, sourceY, targetX, targetY, data }: EdgeProps<Fl
   const ui = useContext(GraphUiContext);
   const link = data?.link;
   if (!link) return null;
-  return (
-    <BaseEdge
-      id={id}
-      path={linkPath(link, ui.direction, sourceX, sourceY, targetX, targetY)}
-      interactionWidth={0}
-      className={`event-link ${link.otherwise ? 'event-link--otherwise' : ''} ${ui.dropEdgeId === id ? 'event-link--drop' : ''}`}
-    />
-  );
+  const className = `event-link ${link.otherwise ? 'event-link--otherwise' : ''} ${link.shape === 'jump' ? 'event-link--jump' : ''} ${ui.dropEdgeId === id ? 'event-link--drop' : ''}`;
+  if (link.shape === 'jump') {
+    const { path, middle } = jumpCurve({
+      direction: ui.direction,
+      nodes: ui.nodes,
+      sourceId: link.source,
+      targetId: link.target,
+      aside: link.sourceHandle === 'no',
+      from: { x: sourceX, y: sourceY },
+      to: { x: targetX, y: targetY },
+    });
+    return (
+      <>
+        <BaseEdge id={id} path={path} interactionWidth={0} className={className} />
+        <EdgeLabelRenderer>
+          <button
+            type="button"
+            className="event-link__add event-link__remove nodrag nopan"
+            style={{ transform: `translate(-50%, -50%) translate(${middle.x}px, ${middle.y}px)`, pointerEvents: 'all' }}
+            aria-label={REMOVE_JUMP_HINT}
+            title={REMOVE_JUMP_HINT}
+            onClick={() => ui.onRemoveJump(link)}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        </EdgeLabelRenderer>
+      </>
+    );
+  }
+  return <BaseEdge id={id} path={linkPath(link, ui.direction, sourceX, sourceY, targetX, targetY)} interactionWidth={0} className={className} />;
 }
 
 const edgeTypes = { link: LinkEdge };
@@ -203,7 +293,7 @@ function LinkControls({ graph }: { graph: EventGraph }) {
         // The links of an effect follow it while it is dragged, so their "+" would float away from them.
         const hidden = !!ui.dragFrom && !!slot && isSlotBeside(ui.dragFrom, slot);
         // Each mark sits by the edge its link leaves from, just off the link and clear of its "+".
-        const ahead = ui.direction === 'down' ? label === 'Yes' : label === 'No';
+        const ahead = link.sourceHandle === (ui.direction === 'down' ? 'yes' : 'no');
         return (
           <Fragment key={link.id}>
             {label && source && (
@@ -256,9 +346,13 @@ export interface EventGraphCanvasProps {
   onAddEnd: (slot: GraphSlot) => void;
   onMoveEffect: (effectId: string, slot: GraphSlot) => void;
   onRemoveEffect: (effectId: string) => void;
+  /** A side of a condition carries on at any step, or at the end, instead of where its line goes on; `null` takes the jump away. */
+  onSetJump: (stepId: string, section: BranchSection, target: string | null) => void;
 }
 
-function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag, onSelect, onAddEffect, onAddCondition, onAddEnd, onMoveEffect, onRemoveEffect }: EventGraphCanvasProps) {
+const jumpKey = (nodeId: string, handle?: string | null) => `${nodeId}|${handle ?? ''}`;
+
+function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag, onSelect, onAddEffect, onAddCondition, onAddEnd, onMoveEffect, onRemoveEffect, onSetJump }: EventGraphCanvasProps) {
   const flow = useReactFlow<FlowNode, FlowEdge>();
   const updateNodeInternals = useUpdateNodeInternals();
   const down = graph.direction === 'down';
@@ -272,6 +366,20 @@ function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag
   const [drag, setDrag] = useState<{ id: string; x: number; y: number; from: EffectLocation | null } | null>(null);
   const [dropEdgeId, setDropEdgeId] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ link: GraphEdge; left: number; top?: number; bottom?: number } | null>(null);
+  // The side a link is being dragged from, to jump from it. Read from the store so it also holds in
+  // click-to-connect mode, after the mouse is released. A string keeps the subscription stable.
+  const connectingFrom = useStore((state) => {
+    const { connection, connectionClickStartHandle: clicked } = state;
+    if (connection.inProgress && connection.fromHandle?.type === 'source') return jumpKey(connection.fromNode.id, connection.fromHandle.id);
+    return clicked?.type === 'source' ? jumpKey(clicked.nodeId, clicked.id) : null;
+  });
+  const jumpSources = useMemo(() => new Map(graph.jumpSources.map((source) => [jumpKey(source.nodeId, source.handle), source])), [graph.jumpSources]);
+  const sourceOf = (nodeId: string | null | undefined, handle?: string | null) => (nodeId ? jumpSources.get(jumpKey(nodeId, handle)) : undefined);
+  const jumping = connectingFrom ? jumpSources.get(connectingFrom) ?? null : null;
+  const jumpTo = (source: GraphJumpSource | undefined, nodeId: string | null | undefined) => {
+    const target = nodeId ? graph.jumpTargets[nodeId] : undefined;
+    return source && nodeId && target && source.targets.includes(nodeId) ? target : undefined;
+  };
 
   const nodes = useMemo<FlowNode[]>(() => graph.nodes.map((node) => {
     const dragged = drag?.id === node.id;
@@ -283,7 +391,6 @@ function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag
       width: node.width,
       height: node.height,
       measured: measured[node.id],
-      connectable: false,
       deletable: false,
     };
     const passive = { ...base, selectable: false, draggable: false, focusable: false, data: { graph: node, problem } };
@@ -315,11 +422,12 @@ function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag
       const effect = node.effectId ? findEffect(draft.steps, node.effectId)?.effect : undefined;
       if (!effect) return passive;
       const otherwise = node.side === 'no';
+      const target = node.branchStepId ? parseRollBranch(findStep(draft.steps, node.branchStepId)?.condition, effect.resultName)?.trim() : undefined;
       return card({
         pill: otherwise ? 'Else' : 'Then',
         tone: otherwise ? 'else' : 'then',
         icon: getEventIcon(effect.kind, findWidget(character, effect.widgetId)),
-        text: effect.kind ? describeEffect(character, effect) : 'Choose what this does',
+        text: effect.kind ? `${describeEffect(character, effect)}${target === undefined ? '' : ` · target ${target || '?'}`}` : 'Choose what this does',
         blank: !effect.kind,
       });
     }
@@ -421,6 +529,13 @@ function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag
     updateNodeInternals(graph.nodes.map((node) => node.id));
     showStart();
   });
+
+  // A roll that gains or loses its target number, or a side that gains or loses a place to jump from, gains or loses handles, which React Flow only measures again when told.
+  const branchKey = graph.nodes.filter((node) => node.branchStepId).map((node) => node.id).join(',');
+  const jumpKeys = graph.jumpSources.map((source) => jumpKey(source.nodeId, source.handle)).join(',');
+  useLayoutEffect(() => {
+    updateNodeInternals(graph.nodes.map((node) => node.id));
+  }, [branchKey, jumpKeys]);
 
   // Keeps the graph in the middle when the room for it changes width, as when a phone is turned.
   useEffect(() => {
@@ -539,10 +654,30 @@ function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag
     onRemoveEffect(effectId);
   };
 
-  const ui: GraphUi = { direction: graph.direction, dropEdgeId, dragFrom: drag?.from ?? null, menuEdgeId: menu?.link.id ?? null, onPlus: handlePlus, onAdd: addAt };
+  const ui: GraphUi = {
+    direction: graph.direction,
+    nodes: graph.nodes,
+    dropEdgeId,
+    dragFrom: drag?.from ?? null,
+    menuEdgeId: menu?.link.id ?? null,
+    onPlus: handlePlus,
+    onAdd: addAt,
+    canJumpFrom: (nodeId, handle) => !!sourceOf(nodeId, handle),
+    isJumpTarget: (nodeId) => !!jumping && !!jumpTo(jumping, nodeId),
+    onRemoveJump: (link) => {
+      const source = sourceOf(link.source, link.sourceHandle);
+      if (source) onSetJump(source.stepId, source.section, null);
+    },
+  };
+
+  const handleConnect = (connection: Connection) => {
+    const source = sourceOf(connection.source, connection.sourceHandle);
+    const target = jumpTo(source, connection.target);
+    if (source && target) onSetJump(source.stepId, source.section, target);
+  };
 
   return (
-    <div ref={wrapperRef} data-touch-camera-own-pinch="true" className={`event-graph absolute inset-0 ${ready ? '' : 'opacity-0'}`}>
+    <div ref={wrapperRef} data-touch-camera-own-pinch="true" className={`event-graph absolute inset-0 ${jumping ? 'event-graph--jumping' : ''} ${ready ? '' : 'opacity-0'}`}>
       <GraphUiContext.Provider value={ui}>
         <ReactFlow
           nodes={nodes}
@@ -562,7 +697,9 @@ function Canvas({ character, draft, graph, selectedId, problems, reveal, canDrag
           onInit={showStart}
           onKeyDown={handleKeyDown}
           nodesDraggable={canDrag}
-          nodesConnectable={false}
+          nodesConnectable
+          onConnect={handleConnect}
+          isValidConnection={(connection) => !!jumpTo(sourceOf(connection.source, connection.sourceHandle), connection.target)}
           edgesFocusable={false}
           edgesReconnectable={false}
           selectNodesOnDrag={false}

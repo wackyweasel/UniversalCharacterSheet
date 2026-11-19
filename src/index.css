@@ -4988,6 +4988,74 @@ button.event-flow__line:hover {
   stroke-dasharray: 5 4;
 }
 
+/* A jump runs off to a later node, so it is told apart from the line it replaces by its colour and its fine dashes. */
+.event-graph .event-link--jump {
+  stroke: var(--color-accent);
+  stroke-dasharray: 2 4;
+  stroke-linecap: round;
+}
+
+/* The point a side jumps from is a dot to drag from. It stays out of sight, since every side has one, until its node is pointed at or a jump is being dragged. */
+.event-graph .react-flow__handle.event-handle--jump {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--color-accent);
+  border-radius: 9999px;
+  background: var(--color-paper);
+  cursor: crosshair;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.event-graph .react-flow__node:hover .react-flow__handle.event-handle--jump,
+.event-graph .react-flow__handle.event-handle--jump:hover,
+.event-graph .react-flow__handle.event-handle--jump:focus-visible,
+.event-graph--jumping .react-flow__handle.event-handle--jump {
+  opacity: 1;
+}
+
+/* Where there is no hover, the dots stay faintly visible so there is still a way to start a jump. */
+@media (hover: none) {
+  .event-graph .react-flow__handle.event-handle--jump {
+    opacity: 0.5;
+  }
+}
+
+.event-graph .react-flow__handle.event-handle--jump:hover {
+  background: var(--color-accent);
+}
+
+/* A join is only a dot, so its handle sits on it rather than next to it. */
+.event-graph .react-flow__handle.event-handle--center {
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.event-graph .react-flow__handle.event-handle--drop {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: none;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+}
+
+.event-node--landing {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
+.event-link__remove {
+  font-size: 14px;
+  line-height: 1;
+}
+
 .event-graph .event-link--drop {
   stroke: var(--color-accent);
   stroke-width: 3;

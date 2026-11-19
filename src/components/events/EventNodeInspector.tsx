@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import type { Character, CharacterEventEffect, CharacterEventStep, CharacterEventTrigger } from '../../types';
 import { eventLabel, resultLabel } from '../../events/constants';
 import { getAvailableData, type DraftProblems, type EventDataGroup, type EventDraft } from '../../events/editorDraft';
-import { findEffect, findStep, hasCondition, hasStepsAfter, removeCondition, removeEffect, shiftEffect, updateStep, type GraphNode } from '../../events/graph';
+import { addRollBranch, findEffect, findStep, getRollBranches, hasCondition, hasStepsAfter, parseRollBranch, removeCondition, removeEffect, renameRollBranch, setRollTarget, shiftEffect, updateStep, type GraphNode } from '../../events/graph';
 import { findWidget } from '../../events/helpers';
 import { describeEffect, describeTrigger, getEffectOutputs, getEventIcon, getTriggerOutputs } from '../../events/registry';
 import { getEventEffects, mapEventEffects } from '../../events/steps';
 import { sanitizeLabelInput } from '../../utils/characterVariables';
-import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, TrashIcon } from '../icons';
+import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon, PlusIcon, TrashIcon } from '../icons';
 import { Field, fieldClass, PartFields, ProblemList, type DataTarget, type RegisterDataTarget } from './EventPartFields';
 
 type StepsChange = (change: (steps: CharacterEventStep[]) => CharacterEventStep[]) => void;
@@ -34,6 +34,14 @@ function insertDataRef(target: DataTarget, ref: string, atEnd: boolean): number 
   return before.length + text.length;
 }
 
+/** A result name nobody else uses: `base`, else `base_2`, `base_3`… */
+function freeResultName(base: string, all: CharacterEventEffect[], effectId: string): string {
+  const taken = new Set(all.filter((effect) => effect.id !== effectId).map((effect) => effect.resultName?.trim()));
+  let name = base;
+  for (let index = 2; taken.has(name); index += 1) name = `${base}_${index}`;
+  return name;
+}
+
 /** Keeps an effect's result name in step with its kind: only kinds with outputs have one, and a new one gets a free default. */
 function withResultName(previous: CharacterEventEffect, next: CharacterEventEffect, all: CharacterEventEffect[]): CharacterEventEffect {
   if (getEffectOutputs(next.kind).length === 0) {
@@ -42,11 +50,7 @@ function withResultName(previous: CharacterEventEffect, next: CharacterEventEffe
   }
   if (next.resultName !== undefined || previous.kind === next.kind) return next;
   if (previous.resultName?.trim()) return { ...next, resultName: previous.resultName };
-  const taken = new Set(all.filter((effect) => effect.id !== next.id).map((effect) => effect.resultName?.trim()));
-  const fallbackName = next.kind === 'dialog.show' ? 'answer' : 'roll';
-  let name = fallbackName;
-  for (let index = 2; taken.has(name); index += 1) name = `${fallbackName}_${index}`;
-  return { ...next, resultName: name };
+  return { ...next, resultName: freeResultName(next.kind === 'dialog.show' ? 'answer' : 'roll', all, next.id) };
 }
 
 interface DataChipsProps {
@@ -149,6 +153,8 @@ export function EventNodeInspector({ node, canDrag, ...props }: EventNodeInspect
           <li>Select a node to edit it here.</li>
           <li>Use + on a link to add an effect or a condition there.</li>
           <li>A condition sends the event down Yes when it is true and down No when it is false. Each side can hold its own effects and conditions, and both meet again below.</li>
+          <li>A dice roll can set a target number: it then leaves by one path when its total reaches the target and by another when it falls short.</li>
+          <li>Drag from the end of a Yes or No path to any other step, even in another branch, or to End, to jump there.</li>
           {canDrag && <li>Drag an effect onto a + to move it.</li>}
         </ul>
       </div>
@@ -273,10 +279,14 @@ function NodeSettings({ character, draft, node, problems, showProblems, onChange
         />
         {hasStepsAfter(draft.steps, step.id) && (
           <div className="mt-3">
-            <Field label="When it's false" help="Applies once everything on the No side has run.">
+            <Field label="When it's false" help={step.otherwiseJump ? 'Applies once everything on the No side has run. Choosing Stop removes the jump from the No side.' : 'Applies once everything on the No side has run.'}>
               <select
                 value={step.stopIfFalse ? 'stop' : 'continue'}
-                onChange={(event) => changeStep((current) => ({ ...current, stopIfFalse: event.target.value === 'stop' }))}
+                onChange={(event) => changeStep((current) => {
+                  // A "no" side that stops the event can't also jump.
+                  const { otherwiseJump: _jump, ...rest } = current;
+                  return event.target.value === 'stop' ? { ...rest, stopIfFalse: true } : { ...current, stopIfFalse: false };
+                })}
                 className={fieldClass}
               >
                 <option value="continue">Carry on with what follows</option>
@@ -307,9 +317,28 @@ function NodeSettings({ character, draft, node, problems, showProblems, onChange
     const list = section === 'effects' ? location.step.effects : location.step.otherwise ?? [];
     const outputs = getEffectOutputs(effect.kind);
     const resultName = effect.resultName?.trim() ?? '';
+    const branch = getRollBranches(draft.steps).get(effect.id);
+    const target = branch ? parseRollBranch(branch.condition, effect.resultName) ?? '' : '';
+    const canSplit = outputs.some((output) => output.key === 'total');
     const updateEffect = (next: CharacterEventEffect) => onChangeSteps((steps) => {
       const all = getEventEffects({ steps });
-      return mapEventEffects({ steps }, (item) => (item.id === effect.id ? withResultName(item, { ...next, id: item.id }, all) : item)).steps;
+      const current = findEffect(steps, effect.id)?.effect;
+      const newName = current ? withResultName(current, { ...next, id: current.id }, all).resultName?.trim() : undefined;
+      // The target number is a condition on the result's name, which follows a rename.
+      const renamed = newName && newName !== current?.resultName?.trim() ? renameRollBranch(steps, effect.id, newName) : steps;
+      return mapEventEffects({ steps: renamed }, (item) => (item.id === effect.id ? withResultName(item, { ...next, id: item.id }, all) : item)).steps;
+    });
+    const addTarget = () => onChangeSteps((steps) => {
+      const named = effect.resultName?.trim()
+        ? steps
+        : mapEventEffects({ steps }, (item) => (item.id === effect.id ? { ...item, resultName: freeResultName('roll', getEventEffects({ steps }), item.id) } : item)).steps;
+      return addRollBranch(named, effect.id, '10');
+    });
+    const makeTargetField = (element: HTMLInputElement): DataTarget => ({
+      element,
+      mode: 'formula',
+      label: 'the target number',
+      setValue: (value) => onChangeSteps((steps) => setRollTarget(steps, effect.id, value)),
     });
     // The side of the nearest condition above, which a run of effects further down the same line shares.
     const otherwise = node.side === 'no';
@@ -357,13 +386,45 @@ function NodeSettings({ character, draft, node, problems, showProblems, onChange
               <input
                 type="text"
                 value={effect.resultName ?? ''}
-                onChange={(event) => updateEffect({ ...effect, resultName: sanitizeLabelInput(event.target.value) })}
+                onChange={(event) => {
+                  // A target number reads the result by its name, so a roll that has one keeps a name.
+                  if (!branch || event.target.value.trim()) updateEffect({ ...effect, resultName: sanitizeLabelInput(event.target.value) });
+                }}
                 placeholder="attack"
                 autoComplete="off"
                 spellCheck={false}
                 className={`${fieldClass} font-mono`}
               />
             </Field>
+          </div>
+        )}
+        {canSplit && (
+          <div className="mt-3">
+            {branch ? (
+              <>
+                <Field label="Target number" help="The roll leaves by ≥ when its total reaches this number and by < when it falls short. A number or a formula, such as @dc.">
+                  <input
+                    type="text"
+                    value={target}
+                    onChange={(event) => onChangeSteps((steps) => setRollTarget(steps, effect.id, event.target.value))}
+                    onFocus={(event) => registerDataTarget(makeTargetField(event.currentTarget))}
+                    data-event-data-target="true"
+                    placeholder="10 or @dc"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className={`${fieldClass} font-mono`}
+                  />
+                </Field>
+                <button type="button" onClick={() => onChangeSteps((steps) => removeCondition(steps, branch.id))} className="widget-control mt-2 gap-1.5 px-3 py-1.5 text-xs font-bold">
+                  <TrashIcon className="h-3.5 w-3.5" /> Remove target number
+                </button>
+                <p className="mt-1.5 text-[11px] leading-snug text-theme-muted">What is on the ≥ path stays and always runs. The &lt; path is removed with it.</p>
+              </>
+            ) : (
+              <button type="button" onClick={addTarget} className="widget-control gap-1.5 px-3 py-1.5 text-xs font-bold">
+                <PlusIcon className="h-3.5 w-3.5" /> Set a target number
+              </button>
+            )}
           </div>
         )}
         <DataChips
@@ -383,7 +444,7 @@ function NodeSettings({ character, draft, node, problems, showProblems, onChange
           />
         )}
         {effect.kind && <Sentence icon={getEventIcon(effect.kind, findWidget(character, effect.widgetId))} text={describeEffect(character, effect)} />}
-        {showProblems && <ProblemList problems={problems.effects[effect.id]} />}
+        {showProblems && <ProblemList problems={[...(problems.effects[effect.id] ?? []), ...(branch ? problems.conditions[branch.id] ?? [] : [])]} />}
       </section>
     );
   }

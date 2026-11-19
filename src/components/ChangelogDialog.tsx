@@ -37,6 +37,13 @@ export function useChangelogOnLoad(ready: boolean): [{ lastSeenVersion: string |
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.18.2',
+    changes: [
+      'Event dice rolls can now have a target number, with one path out for a roll that reaches it (greater or equal) and one for a roll that falls short (smaller).',
+      'Event graph: connect the end of a Yes or No path to any other step or effect, even in another branch, or to the End node, to jump there directly. Drag from the end of the path, or click it and then click the target. Click the × on a jump link to remove it.',
+    ],
+  },
+  {
     version: '1.18.1',
     changes: [
       'New event editor: events are now built as a graph of linked nodes, with a + on each link to add effects and conditions.',

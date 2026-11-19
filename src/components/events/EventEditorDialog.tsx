@@ -11,12 +11,14 @@ import {
   conditionNodeId,
   cutAfterEnd,
   effectNodeId,
+  getRollBranches,
   hasCondition,
   insertCondition,
   insertEffect,
   layoutEventGraph,
   moveEffect,
   removeEffect,
+  setJump,
   TRIGGER_NODE_ID,
   type GraphDirection,
   type GraphSlot,
@@ -54,6 +56,8 @@ const DIRECTIONS: { value: GraphDirection; label: string; Icon: typeof ArrowDown
   { value: 'right', label: 'Left to right', Icon: ArrowRightIcon },
 ];
 const NO_INSET = { top: 0, bottom: 0 };
+// The graph's connections end with listeners on the document, so what happens in it must get there.
+const isInGraph = (event: { target: EventTarget }) => event.target instanceof Element && !!event.target.closest('.event-graph');
 const tutorialTargetClass = 'outline outline-4 outline-blue-500 outline-offset-2';
 
 const findDiceRoller = (character: Character, label: string) => character.sheets
@@ -251,6 +255,7 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
     if (showProblems) return all;
     // Before a first try at saving, only a condition that was written and doesn't work is pointed out.
     const written = new Set(getAllSteps(draft.steps).filter((step) => step.condition?.trim()).map((step) => conditionNodeId(step.id)));
+    getRollBranches(draft.steps).forEach((_, effectId) => written.add(effectNodeId(effectId)));
     return new Map([...all].filter(([nodeId]) => written.has(nodeId)));
   }, [draft, problems, showProblems]);
 
@@ -321,10 +326,10 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
       className={`fixed inset-0 z-[11000] flex items-center justify-center bg-black/55 p-2 sm:p-4 animate-fade-in ${inTutorialLesson ? 'sm:justify-start sm:pl-6' : ''}`}
       style={{ paddingTop: tutorialInset.top || undefined, paddingBottom: tutorialInset.bottom || undefined }}
       onMouseDown={(event) => event.stopPropagation()}
-      onMouseUp={(event) => event.stopPropagation()}
+      onMouseUp={(event) => !isInGraph(event) && event.stopPropagation()}
       onWheel={(event) => event.stopPropagation()}
       onTouchStart={(event) => event.stopPropagation()}
-      onTouchMove={(event) => event.stopPropagation()}
+      onTouchMove={(event) => !isInGraph(event) && event.stopPropagation()}
     >
       <div
         role="dialog"
@@ -391,6 +396,7 @@ function EventEditorDialog({ character, request }: EventEditorDialogProps) {
               onAddEnd={addEnd}
               onMoveEffect={moveEffectTo}
               onRemoveEffect={(effectId) => changeSteps((current) => removeEffect(current, effectId))}
+              onSetJump={(stepId, section, target) => changeSteps((current) => setJump(current, stepId, section, target))}
             />
           </div>
           {stacked && !selectedNode && (

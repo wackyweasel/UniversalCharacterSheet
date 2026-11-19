@@ -7,13 +7,16 @@ import { END_EVENT_KIND } from './constants';
 import { GLOBAL_LOAD_SLOT } from './defs/numeric';
 import { evaluateAmount, evaluateCondition, findWidget, formatNumber, patchWidgetData } from './helpers';
 import { fillParams, getEffectDef, getEventIcon, getEventTitle, getResultLabels, getTriggerDef, getTriggerLabels, isGlobalEffectKind, isGlobalTriggerKind } from './registry';
-import { getStepEffects, normalizeEvent } from './steps';
+import { containsTarget, END_JUMP, getEffectSection, getStepEffects, isValidJump, normalizeEvent } from './steps';
 import { PromptNeeded, type EventAnswer } from './prompt';
 import type { EffectContext, EffectOutcome, EventDiceDisplay, TriggerMatch, WidgetAction } from './types';
 import { prepareItemArrivals, reconcileItemEffects } from '../utils/itemEffects';
 
 /** Longest chain of events firing one another before the engine stops. */
 export const MAX_CHAIN_DEPTH = 15;
+
+/** How many jumps one run of an event follows, so that a loop of jumps ends. */
+export const MAX_JUMPS = 100;
 
 // Effects whose whole point is their timeline text, so they never count as skipped.
 const REPORT_ONLY_EFFECTS = new Set(['log.message', 'dialog.show', END_EVENT_KIND]);
@@ -292,25 +295,74 @@ export function runEvents(input: EventRunInput): EventRunResult {
       return false;
     };
 
-    /** Runs the steps in order and tells whether one of them ended the event. `outer` is the index of the first-level step they are nested in. */
-    const runSteps = (steps: CharacterEventStep[], outer?: number): boolean => {
-      for (let index = 0; index < steps.length; index += 1) {
+    /** The step or effect a jump leads to, while the runs of steps it isn't in wind down. */
+    let pending: string | null = null;
+    let jumps = 0;
+    const root = normalizeEvent(event).steps;
+
+    /**
+     * Runs the steps in order and tells whether one of them ended the event. `outer` is the index of the first-level
+     * step they are nested in. With `landing`, it starts at the step or effect that id names, or at the step that holds it, instead of the first.
+     */
+    const runSteps = (steps: CharacterEventStep[], outer?: number, landing?: string): boolean => {
+      const start = landing;
+      let index = start ? steps.findIndex((item) => containsTarget([item], start)) : 0;
+      while (index >= 0 && index < steps.length) {
         const step = steps[index];
         const top = outer ?? index;
-        const passed = evaluateCondition(step.condition, withEventLabels(collectLabels(current), event, match, results));
-        // Results of the sides that don't run still read as 0 or empty text, so later steps can use them.
-        if (outer === undefined) for (const effect of getStepEffects(step)) Object.assign(results, getResultLabels(effect));
-        if (passed) {
-          if (runEffects(step.effects, top, false) || runSteps(step.steps ?? [], top)) return true;
+        // The step holds the place that was jumped to: its condition isn't asked again, only the side that holds it carries on.
+        const into = landing && step.id !== landing ? landing : undefined;
+        landing = undefined;
+        let jump: string | undefined;
+        const section = into ? getEffectSection(step, into) : undefined;
+        if (into && section) {
+          // An effect of the step: its list carries on from there, then the steps nested after it.
+          const list = (section === 'effects' ? step.effects : step.otherwise) ?? [];
+          const nested = (section === 'effects' ? step.steps : step.otherwiseSteps) ?? [];
+          if (runEffects(list.slice(list.findIndex((effect) => effect.id === into)), top, section === 'otherwise') || runSteps(nested, top)) return true;
+          if (section === 'otherwise' && step.stopIfFalse && !pending) return true;
+          jump = section === 'effects' ? step.jump : step.otherwiseJump;
+        } else if (into) {
+          const inYes = containsTarget(step.steps ?? [], into);
+          if (runSteps((inYes ? step.steps : step.otherwiseSteps) ?? [], top, into)) return true;
+          if (!inYes && step.stopIfFalse && !pending) return true;
+          jump = inYes ? step.jump : step.otherwiseJump;
+        } else {
+          const passed = evaluateCondition(step.condition, withEventLabels(collectLabels(current), event, match, results));
+          // Results of the sides that don't run still read as 0 or empty text, so later steps can use them.
+          if (outer === undefined) for (const effect of getStepEffects(step)) Object.assign(results, getResultLabels(effect));
+          if (passed) {
+            if (runEffects(step.effects, top, false) || runSteps(step.steps ?? [], top)) return true;
+            jump = step.jump;
+          } else {
+            firing.conditionFailed = true;
+            if (outer === undefined) firing.failedSteps = [...(firing.failedSteps ?? []), index];
+            if (runEffects(step.otherwise ?? [], top, true) || runSteps(step.otherwiseSteps ?? [], top)) return true;
+            if (step.stopIfFalse && !pending) return true;
+            jump = step.otherwiseJump;
+          }
+        }
+        if (!pending && isValidJump(root, step.id, jump)) pending = jump;
+        if (!pending) {
+          index += 1;
           continue;
         }
-        firing.conditionFailed = true;
-        if (outer === undefined) firing.failedSteps = [...(firing.failedSteps ?? []), index];
-        if (runEffects(step.otherwise ?? [], top, true) || runSteps(step.otherwiseSteps ?? [], top) || step.stopIfFalse) return true;
+        if (pending === END_JUMP) return true;
+        // A jump can loop back, so a cap keeps an event that never leaves its loop from running forever.
+        if (jumps >= MAX_JUMPS) return true;
+        const target: string = pending;
+        const at = steps.findIndex((item) => containsTarget([item], target));
+        // The place is in a run this one is nested in, or in another branch: they stop so that it is found from there.
+        if (at < 0) return false;
+        if (outer === undefined && at > index) for (const skipped of steps.slice(index + 1, at)) for (const effect of getStepEffects(skipped)) Object.assign(results, getResultLabels(effect));
+        landing = target;
+        pending = null;
+        jumps += 1;
+        index = at;
       }
       return false;
     };
-    runSteps(normalizeEvent(event).steps);
+    runSteps(root);
   };
 
   for (let depth = 0; ; depth += 1) {

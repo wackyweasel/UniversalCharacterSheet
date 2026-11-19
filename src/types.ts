@@ -942,6 +942,10 @@ export interface CharacterEventStep {
   otherwiseSteps?: CharacterEventStep[];
   /** When the condition is false, end the event once that side has run instead of going on with what follows. */
   stopIfFalse?: boolean;
+  /** Once the "yes" side has run, carries on at this step, wherever it is in the event (or at the end, with "end"), instead of with what follows. */
+  jump?: string;
+  /** The same for the "otherwise" side. */
+  otherwiseJump?: string;
 }
 
 /** A "when … then …" automation: one trigger followed by steps of condition and effects, run in order. */

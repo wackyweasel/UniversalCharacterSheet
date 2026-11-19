@@ -4,7 +4,7 @@ import { evaluateFormulaValue, hasUnresolvedRefs } from '../utils/formulaEngine'
 import type { FormulaLabels } from '../utils/formulaSyntax';
 import { eventLabel, findEventLabelRefs, resultLabel } from './constants';
 import { createEventDraft } from './drafts';
-import { addNodeId, conditionNodeId, effectNodeId, hasCondition, hasStepsAfter, tidySteps, TRIGGER_NODE_ID } from './graph';
+import { addNodeId, conditionNodeId, effectNodeId, getRollBranches, hasCondition, hasStepsAfter, tidySteps, TRIGGER_NODE_ID } from './graph';
 import { findWidget } from './helpers';
 import {
   fillParams,
@@ -158,12 +158,20 @@ export function getNodeProblems(draft: EventDraft, problems: DraftProblems): Map
     if (list?.length) byNode.set(nodeId, list);
   };
   add(TRIGGER_NODE_ID, problems.trigger);
+  // A condition drawn as part of the roll before it reports its problems on that roll.
+  const rollOf = new Map(Array.from(getRollBranches(draft.steps), ([effectId, branch]) => [branch.id, effectId]));
   for (const { step, effect } of getEventParts(draft)) {
     if (effect) {
       add(effectNodeId(effect.id), problems.effects[effect.id]);
       continue;
     }
-    add(conditionNodeId(step.id), problems.conditions[step.id]);
+    const rollId = rollOf.get(step.id);
+    if (rollId) {
+      const own = byNode.get(effectNodeId(rollId)) ?? [];
+      add(effectNodeId(rollId), [...own, ...(problems.conditions[step.id] ?? [])]);
+    } else {
+      add(conditionNodeId(step.id), problems.conditions[step.id]);
+    }
     add(addNodeId(step.id), problems.steps[step.id]);
   }
   return byNode;
@@ -202,6 +210,8 @@ export function toEventPayload(character: Character, draft: EventDraft): Omit<Ch
       ...(step.otherwiseSteps?.length ? { otherwiseSteps: step.otherwiseSteps.map(toStored) } : {}),
       // Only kept while something follows, which is when the editor shows the setting.
       ...(condition && step.stopIfFalse && hasStepsAfter(draft.steps, step.id) ? { stopIfFalse: true } : {}),
+      ...(condition && step.jump ? { jump: step.jump } : {}),
+      ...(condition && step.otherwiseJump ? { otherwiseJump: step.otherwiseJump } : {}),
     };
   };
   return {

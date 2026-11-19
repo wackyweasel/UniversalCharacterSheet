@@ -41,7 +41,7 @@ function cleanEffect(value: unknown): CharacterEventEffect | null {
   if (!isRecord(value) || !text(value.kind)) return null;
   const params = cleanParams(value.params);
   return {
-    id: '',
+    id: text(value.id) ?? '',
     kind: value.kind as string,
     ...(text(value.widgetId) ? { widgetId: text(value.widgetId) } : {}),
     ...(text(value.target) !== undefined ? { target: text(value.target) } : {}),
@@ -68,13 +68,15 @@ function cleanSteps(value: unknown, depth: number): CharacterEventStep[] | null 
     const otherwiseSteps = cleanSteps(item.otherwiseSteps, depth + 1);
     if (!effects || !otherwise || !nested || !otherwiseSteps) return null;
     return {
-      id: '',
+      id: text(item.id) ?? '',
       ...(text(item.condition) !== undefined ? { condition: text(item.condition) } : {}),
       effects,
       ...(otherwise.length ? { otherwise } : {}),
       ...(nested.length ? { steps: nested } : {}),
       ...(otherwiseSteps.length ? { otherwiseSteps } : {}),
       ...(item.stopIfFalse === true ? { stopIfFalse: true } : {}),
+      ...(text(item.jump) ? { jump: text(item.jump) } : {}),
+      ...(text(item.otherwiseJump) ? { otherwiseJump: text(item.otherwiseJump) } : {}),
     };
   });
   return steps.every((step): step is CharacterEventStep => step !== null) ? steps : null;

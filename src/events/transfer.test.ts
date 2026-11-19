@@ -57,6 +57,34 @@ describe('event export and import', () => {
     expect(first.enabled).toBe(false);
   });
 
+  it('gives every step and effect an id of its own, even when the file has none or repeats them', () => {
+    const effects = [{ kind: 'log.message', params: { message: 'a' } }, { id: 'dup', kind: 'log.message' }, { id: 'dup', kind: 'log.message' }];
+    const parsed = parseEventsImport(JSON.stringify([{ trigger: { kind: 'manual' }, steps: [{ effects }, { id: 'dup', condition: '1', effects: [{ kind: 'log.message' }] }] }]));
+    if (!parsed.ok) throw new Error(parsed.error);
+    const [event] = planEventsImport(target, parsed.data).events;
+    const ids = event.steps.flatMap((step) => [step.id, ...step.effects.map((effect) => effect.id)]);
+    expect(ids.every(Boolean)).toBe(true);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('points jumps at the copied steps and effects', () => {
+    const jumping: CharacterEvent = {
+      id: 'e3',
+      enabled: true,
+      trigger: { kind: 'manual' },
+      steps: [
+        { id: 'j1', condition: '1', effects: [], otherwise: [{ id: 'jf', kind: 'log.message' }], jump: 'j2', otherwiseJump: 'end' },
+        { id: 'j2', condition: '1', effects: [{ id: 'jg', kind: 'log.message' }], otherwiseJump: 'jf' },
+      ],
+    };
+    const parsed = parseEventsImport(serializeEvents(source, [jumping]));
+    if (!parsed.ok) throw new Error(parsed.error);
+    const [event] = planEventsImport(target, parsed.data).events;
+    expect(event.steps[0].jump).toBe(event.steps[1].id);
+    expect(event.steps[0].otherwiseJump).toBe('end');
+    expect(event.steps[1].otherwiseJump).toBe(event.steps[0].otherwise![0].id);
+  });
+
   it('accepts a bare list and rejects text that is not events', () => {
     expect(parseEventsImport(JSON.stringify([events[1]])).ok).toBe(true);
     expect(parseEventsImport('nope').ok).toBe(false);

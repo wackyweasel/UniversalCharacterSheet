@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CardTableCard, Character, CharacterEvent as StepEvent, CharacterEventEffect, InventoryItem, Widget } from '../types';
-import { MAX_CHAIN_DEPTH, interpolateText, runEvents } from './engine';
+import { MAX_CHAIN_DEPTH, MAX_JUMPS, interpolateText, runEvents } from './engine';
 import { createEffect, createEventDraft, createTextButtonDraft, getEventSourceWidgets } from './drafts';
 import { findInlineButtonNames, TEXT_BUTTON_KIND } from './defs/textButton';
 import { patchWidgetData } from './helpers';
@@ -1367,6 +1367,70 @@ describe('steps nested in the sides of a condition', () => {
     const [step] = normalizeEvent(stored as unknown as StepEvent).steps;
     expect(step.steps![0].id).toBeTruthy();
     expect(step.steps![0].effects[0].id).toBeTruthy();
+  });
+});
+
+describe('jumps from a side of a condition', () => {
+  const log = (id: string, message: string): CharacterEventEffect => ({ id, kind: 'log.message', params: { message } });
+  const event = (): StepEvent => ({
+    id: 'e-jump',
+    enabled: true,
+    trigger: { kind: 'manual' },
+    steps: [
+      { id: 's1', condition: '1', effects: [log('f1', 'Yes')], otherwise: [log('f2', 'No')], steps: [{ id: 's1a', condition: '1', effects: [log('f3', 'Inner')] }] },
+      { id: 's2', effects: [log('f4', 'Middle')] },
+      { id: 's3', effects: [log('f5', 'Last')] },
+    ],
+  });
+  const texts = (item: StepEvent) => {
+    const before = character([health], [item]);
+    return runEvents({ before, after: before, manualEventId: item.id }).firings[0].effects.map((effect) => effect.text);
+  };
+
+  it('carries on at the step a side jumps to, skipping the ones between', () => {
+    const jumping = event();
+    jumping.steps[0].jump = 's3';
+    expect(texts(jumping)).toEqual(['Yes', 'Inner', 'Last']);
+  });
+
+  it('ends the event when a side jumps to the end, and only that side', () => {
+    const jumping = event();
+    jumping.steps[0].condition = '0';
+    jumping.steps[0].otherwiseJump = 'end';
+    expect(texts(jumping)).toEqual(['No']);
+    jumping.steps[0].condition = '1';
+    expect(texts(jumping)).toEqual(['Yes', 'Inner', 'Middle', 'Last']);
+  });
+
+  it('jumps out of a step nested in a side', () => {
+    const jumping = event();
+    jumping.steps[0].steps![0].jump = 's3';
+    expect(texts(jumping)).toEqual(['Yes', 'Inner', 'Last']);
+  });
+
+  it('jumps into a step of another branch, then carries on after the branch it is in', () => {
+    const jumping = event();
+    jumping.steps.unshift({ id: 's0', condition: '1', effects: [log('f0', 'Start')], jump: 's1a' });
+    jumping.steps[1].condition = '0';
+    jumping.steps[1].steps!.push({ id: 's1b', effects: [log('f6', 'After inner')] });
+    expect(texts(jumping)).toEqual(['Start', 'Inner', 'After inner', 'Middle', 'Last']);
+  });
+
+  it('jumps into the middle of a list of effects, and carries on from there', () => {
+    const jumping = event();
+    jumping.steps[0].otherwise = [log('f2', 'No'), log('f2b', 'No again'), log('f2c', 'No last')];
+    jumping.steps.unshift({ id: 's0', condition: '1', effects: [log('f0', 'Start')], jump: 'f2b' });
+    jumping.steps[1].condition = '0';
+    expect(texts(jumping)).toEqual(['Start', 'No again', 'No last', 'Middle', 'Last']);
+  });
+
+  it('jumps back to an earlier step, and stops a loop that never ends', () => {
+    const jumping = event();
+    jumping.steps[2].condition = '1';
+    jumping.steps[2].jump = 's2';
+    const result = texts(jumping);
+    expect(result.slice(0, 3)).toEqual(['Yes', 'Inner', 'Middle']);
+    expect(result.filter((text) => text === 'Last')).toHaveLength(MAX_JUMPS + 1);
   });
 });
 

@@ -46,7 +46,7 @@ import {
   type CompendiumMergeResult,
 } from '../utils/compendium';
 import { withEventsSuppressed } from '../events/suppress';
-import { mapSteps, normalizeEvent } from '../events/steps';
+import { copyStepsWithFreshIds, normalizeEvent } from '../events/steps';
 import { getEventTelemetryDetails, type EventTelemetrySource } from '../events/telemetry';
 import { areEventsSuppressed } from '../events/suppress';
 import { bindEffectTargets, bindItemEffectTargets } from '../utils/numericTargets';
@@ -3339,13 +3339,7 @@ export const useStore = create<StoreState>((rawSet, get) => {
         if (index < 0) return character;
         const copy: CharacterEvent = JSON.parse(JSON.stringify(normalizeEvent(events[index])));
         copy.id = copyId;
-        const freshEffects = (effects: CharacterEvent['steps'][number]['effects']) => effects.map((effect) => ({ ...effect, id: uuidv4() }));
-        copy.steps = mapSteps(copy.steps, (step) => ({
-          ...step,
-          id: uuidv4(),
-          effects: freshEffects(step.effects),
-          ...(step.otherwise ? { otherwise: freshEffects(step.otherwise) } : {}),
-        }));
+        copy.steps = copyStepsWithFreshIds(copy.steps);
         if (copy.name) copy.name = `${copy.name} (copy)`;
         events.splice(index + 1, 0, copy);
         return { ...character, events };
