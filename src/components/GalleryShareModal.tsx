@@ -88,7 +88,7 @@ export default function GalleryShareModal({
   return (
     <>
       <div className="fixed inset-0 bg-black/50 z-[60] animate-fade-in" onClick={handleClose} />
-      <div className={panelClassName} role="dialog" aria-modal="true">
+      <div className={`${panelClassName} max-h-[90vh] overflow-y-auto`} role="dialog" aria-modal="true">
         {success ? (
           <div className="text-center py-4">
             <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-green-600 text-white flex items-center justify-center">
@@ -107,6 +107,13 @@ export default function GalleryShareModal({
         ) : (
           <>
             <h3 className="text-lg font-bold mb-4">Share to Gallery</h3>
+            {requestGameSystem && (
+              <div className={`text-sm mb-4 space-y-2 ${helperTextClassName}`}>
+                <p>Presets should be blank character sheets ready to be filled in, not specific characters.</p>
+                <p>It may take a few days for your preset to be reviewed and appear in the gallery.</p>
+                <p>To quickly share a character, use Export instead.</p>
+              </div>
+            )}
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">Name</label>
               <input
