@@ -447,6 +447,22 @@ describe('partial widget detaching', () => {
     expect(getWidget('a').groupId).toBeUndefined();
     expect(getWidget('c').groupId).toBeUndefined();
   });
+
+  it('applies layouts and detaches pairs as one undo step', () => {
+    useStore.getState().applyWidgetLayouts(
+      [{ id: 'b', x: 100, y: 0, w: 50 }, { id: 'c', x: 150, y: 0, w: 150 }],
+      'Resize widget',
+      { detachPairs: [['b', 'd']] },
+    );
+    expect(getWidget('b')).toMatchObject({ w: 50, attachedTo: ['a', 'c'] });
+    expect(getWidget('c')).toMatchObject({ x: 150, w: 150 });
+    expect(getWidget('d')).toMatchObject({ groupId: undefined, attachedTo: undefined });
+
+    useStore.getState().undo();
+    expect(getWidget('b')).toMatchObject({ w: 100, attachedTo: ['a', 'c', 'd'] });
+    expect(getWidget('c')).toMatchObject({ x: 200, w: 100 });
+    expect(getWidget('d').groupId).toBe('group-1');
+  });
 });
 
 describe('compendium drag store actions', () => {

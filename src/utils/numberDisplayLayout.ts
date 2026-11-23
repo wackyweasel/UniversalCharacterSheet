@@ -21,6 +21,8 @@ export function getNumberDisplayListLayout(data: WidgetData) {
 
   return {
     containerClassName: `${stacked ? 'flex-col items-center' : 'flex-row flex-wrap items-stretch justify-center'} content-start`,
+    rowSize: undefined as number | undefined,
+    rowClassName: undefined as string | undefined,
     boxStyle: { ...boxStyle, padding: `${0.25 * scale}rem` },
     secondaryBoxStyle: {
       minHeight: `${24 * scale}px`,
@@ -34,7 +36,14 @@ export function getNumberDisplayListLayout(data: WidgetData) {
   };
 }
 
-export function getNumberDisplayLayout(data: WidgetData, width: number, height: number) {
+// Spreads items over the fewest rows that fit, then gives every row the same count (e.g. 15 items, 9 fit: 8 + 7).
+export function getBalancedRowSize(count: number, capacity: number) {
+  const perRow = Math.max(1, Math.min(count, Math.floor(capacity)));
+  return Math.ceil(count / Math.ceil(count / perRow));
+}
+
+// `containerWidth` is the measured width of the box area; it defaults to `width` until it has been measured.
+export function getNumberDisplayLayout(data: WidgetData, width: number, height: number, containerWidth: number = width) {
   const hasStepButtons = data.showDisplayNumberButtons ?? false;
   // Missing settings retain the original appearance of saved widgets and templates.
   const layout = data.displayLayout ?? 'horizontal';
@@ -57,7 +66,14 @@ export function getNumberDisplayLayout(data: WidgetData, width: number, height: 
     squareColumns = Array.from({ length: count }, (_, index) => index + 1)
       .reduce((best, columns) => (squareFit(columns, Math.ceil(count / columns)) > squareFit(best, Math.ceil(count / best)) ? columns : best), 1);
   }
+  if (layout === 'auto') squareColumns = getBalancedRowSize(count, squareColumns);
   const squareRows = Math.ceil(count / squareColumns);
+  // Auto layout draws explicit rows so every row holds the same number of boxes.
+  const rowSize = layout === 'auto'
+    ? fixedAspectRatio && dynamicSize
+      ? squareColumns
+      : getBalancedRowSize(count, Math.floor((containerWidth - 8 + 4) / (boxSize + 4)))
+    : undefined;
   const dynamicSquareSize = fixedAspectRatio && dynamicSize
     ? `min(calc((100cqw - ${4 * (squareColumns - 1)}px) / ${squareColumns}), calc((100cqh - ${4 * (squareRows - 1)}px) / ${squareRows}))`
     : undefined;
@@ -71,7 +87,7 @@ export function getNumberDisplayLayout(data: WidgetData, width: number, height: 
   let boxStyle: CSSProperties;
   if (fixedAspectRatio) {
     containerClassName = layout === 'auto'
-      ? 'flex-row flex-wrap content-start items-start justify-center overflow-auto'
+      ? 'flex-col flex-nowrap items-stretch justify-start overflow-auto'
       : layout === 'vertical'
         ? 'flex-col flex-nowrap items-center justify-start overflow-auto'
         : 'flex-row flex-nowrap items-start justify-start overflow-auto';
@@ -85,7 +101,7 @@ export function getNumberDisplayLayout(data: WidgetData, width: number, height: 
         minHeight: 0,
       };
   } else if (layout === 'auto') {
-    containerClassName = 'flex-row flex-wrap content-stretch items-stretch justify-center overflow-auto';
+    containerClassName = 'flex-col flex-nowrap items-stretch justify-start overflow-auto';
     boxStyle = {
       flex: `1 1 ${boxSize}px`,
       minWidth: `min(100%, ${30 * scale}px)`,
@@ -107,6 +123,10 @@ export function getNumberDisplayLayout(data: WidgetData, width: number, height: 
 
   return {
     containerClassName,
+    rowSize,
+    rowClassName: fixedAspectRatio
+      ? 'flex flex-row flex-shrink-0 items-start justify-center gap-1'
+      : 'flex flex-1 flex-row items-stretch justify-center gap-1',
     boxStyle: { ...boxStyle, padding: `${0.25 * scale}rem` },
     secondaryBoxStyle: {
       minHeight: `${24 * scale}px`,

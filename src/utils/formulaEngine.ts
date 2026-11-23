@@ -554,6 +554,100 @@ function formulaReferencesAnyLabel(formula: string, labels: string[]): boolean {
   return labels.some(label => formulaReferencesLabel(formula, label));
 }
 
+/** Argument spans that name a whole generated-label group: SUM(@col), VALUE(@col, i), THRESHOLD(v, @col). */
+function getGeneratedLabelGroupSpans(formula: string): { start: number; end: number }[] {
+  const spans: { start: number; end: number }[] = [];
+  const maskedFormula = maskFormulaStringLiterals(formula);
+  if (maskedFormula === null) return spans;
+  const regex = /\b(THRESHOLD|VALUE|SUM)\s*\(/gi;
+  let match;
+  while ((match = regex.exec(maskedFormula)) !== null) {
+    const parsed = parseFunctionArguments(formula, match.index + match[0].length);
+    const span = parsed?.argSpans[match[1].toUpperCase() === 'THRESHOLD' ? 1 : 0];
+    if (span) spans.push(span);
+  }
+  return spans;
+}
+
+/**
+ * Row/column formulas run once per cell. A bare reference to another label of the same axis
+ * (`@cv` in a column formula, `@other_row` in a row formula) means "that label at this cell's position",
+ * i.e. `@cv3` for the cell in row 3. Group references (SUM, VALUE, THRESHOLD) and real labels keep their meaning.
+ * Positions without a labelled cell read as 0, like any empty value.
+ */
+function bindTableAxisReferences(formula: string, labels: FormulaLabels, axisLabels: ReadonlySet<string>, position: number): string {
+  if (axisLabels.size === 0) return formula;
+  const maskedFormula = maskFormulaStringLiterals(formula);
+  if (maskedFormula === null) return formula;
+  const groupSpans = getGeneratedLabelGroupSpans(formula);
+  const regex = /@([A-Za-z_][A-Za-z0-9_]*)/g;
+  let result = '';
+  let cursor = 0;
+  let match;
+  while ((match = regex.exec(maskedFormula)) !== null) {
+    const name = match[1];
+    if (!axisLabels.has(name) || Object.prototype.hasOwnProperty.call(labels, name)) continue;
+    if (groupSpans.some(span => match!.index >= span.start && match!.index < span.end)) continue;
+    const generated = `${name}${position}`;
+    result += formula.slice(cursor, match.index) + (Object.prototype.hasOwnProperty.call(labels, generated) ? `@${generated}` : '0');
+    cursor = match.index + match[0].length;
+  }
+  return result + formula.slice(cursor);
+}
+
+function getTableAxisLabels(settings: (TableColumnSettings | TableRowSettings | null | undefined)[]): Set<string> {
+  const axisLabels = new Set<string>();
+  for (const setting of settings) {
+    if (setting && typeof setting === 'object' && setting.label) axisLabels.add(setting.label);
+  }
+  return axisLabels;
+}
+
+export interface TableFormulaContext {
+  rows: TableRow[];
+  columnSettings: (TableColumnSettings | null | undefined)[];
+  rowSettings: (TableRowSettings | null | undefined)[];
+  merges: TableMerge[] | undefined;
+}
+
+/**
+ * Finds the formula that drives a table cell (cell, then row, then column) and its per-cell form with axis references bound.
+ * With skipSelfReferences, row/column formulas that read labels they themselves generate are ignored, as the engine never runs them.
+ */
+function getTableCellFormula(
+  table: TableFormulaContext,
+  rowIndex: number,
+  colIndex: number,
+  labels: FormulaLabels,
+  skipSelfReferences: boolean,
+): { formula: string; bound: string } | null {
+  const row = table.rows[rowIndex];
+  if (!row) return null;
+  const cell = row.cells[colIndex];
+  const cellFormula = cell && typeof cell !== 'string' ? cell.formula : undefined;
+  if (cellFormula) return { formula: cellFormula, bound: cellFormula };
+
+  const rowSetting = getTableRowSetting(table.rowSettings, rowIndex);
+  if (rowSetting.formula) {
+    const { formula } = rowSetting;
+    if (skipSelfReferences && formulaReferencesAnyLabel(formula, getTableRowControlledLabels(row, rowIndex, table.columnSettings, rowSetting, table.merges))) return null;
+    return { formula, bound: bindTableAxisReferences(formula, labels, getTableAxisLabels(table.rowSettings), colIndex + 1) };
+  }
+
+  const columnSetting = getTableColumnSetting(table.columnSettings, colIndex);
+  if (columnSetting.formula) {
+    const { formula } = columnSetting;
+    if (skipSelfReferences && formulaReferencesAnyLabel(formula, getTableColumnControlledLabels(table.rows, colIndex, columnSetting, table.rowSettings, table.merges))) return null;
+    return { formula, bound: bindTableAxisReferences(formula, labels, getTableAxisLabels(table.columnSettings), rowIndex + 1) };
+  }
+  return null;
+}
+
+/** The formula text to evaluate for a table cell, with row/column formula references bound to the cell's own row/column. */
+export function getTableCellEvaluationFormula(table: TableFormulaContext, rowIndex: number, colIndex: number, labels: FormulaLabels): string | undefined {
+  return getTableCellFormula(table, rowIndex, colIndex, labels, false)?.bound;
+}
+
 function findTopLevelRangeOperator(expr: string): number | null {
   const maskedExpr = maskFormulaStringLiterals(expr);
   if (maskedExpr === null) return null;
@@ -1210,23 +1304,18 @@ function detectFormulaChanges(oldWidget: Widget, newWidget: Widget, sheetName: s
     const merges = validateTableMerges(newWidget.data).merges;
     const oldRows = oldWidget.data.rows as TableRow[];
     const newRows = newWidget.data.rows as TableRow[];
-    const newColumnSettings = newWidget.data.tableColumnSettings || [];
-    const newRowSettings = newWidget.data.tableRowSettings || [];
+    const table: TableFormulaContext = {
+      rows: newRows, merges,
+      columnSettings: newWidget.data.tableColumnSettings || [],
+      rowSettings: newWidget.data.tableRowSettings || [],
+    };
     for (let r = 0; r < Math.min(oldRows.length, newRows.length); r++) {
-      const rowSetting = getTableRowSetting(newRowSettings, r);
       for (let c = 0; c < Math.min(oldRows[r].cells.length, newRows[r].cells.length); c++) {
         if (isCoveredTableCell(merges, r, c)) continue;
         const oldCell = oldRows[r].cells[c];
         const newCell = newRows[r].cells[c];
-        const columnSetting = getTableColumnSetting(newColumnSettings, c);
-        const cellFormula = typeof newCell !== 'string' ? newCell.formula : undefined;
-        const rowFormula = rowSetting.formula;
-        const columnFormula = columnSetting.formula;
-        const formula = cellFormula || rowFormula || columnFormula;
+        const formula = getTableCellFormula(table, r, c, {}, true)?.formula;
         if (formula) {
-          if (!cellFormula && rowFormula && formulaReferencesAnyLabel(formula, getTableRowControlledLabels(newRows[r], r, newColumnSettings, rowSetting, merges))) continue;
-          if (!cellFormula && !rowFormula && columnFormula && formulaReferencesAnyLabel(formula, getTableColumnControlledLabels(newRows, c, columnSetting, newRowSettings, merges))) continue;
-
           const oldVal = toTextLabelValue(typeof oldCell === 'string' ? oldCell : oldCell.value);
           const newVal = toTextLabelValue(typeof newCell === 'string' ? newCell : newCell.value);
           if (oldVal !== newVal && String(newVal).trim() !== '') {
@@ -1768,22 +1857,17 @@ function resolveWidgetFormulas(widget: Widget, labels: FormulaLabels, effectValu
   if (widget.data.rows) {
     const merges = validateTableMerges(widget.data).merges;
     let rowsChanged = false;
-    const columnSettings = widget.data.tableColumnSettings || [];
-    const rowSettings = widget.data.tableRowSettings || [];
-    const updatedRows = (widget.data.rows as TableRow[]).map((row, rowIndex) => {
+    const table: TableFormulaContext = {
+      rows: widget.data.rows as TableRow[], merges,
+      columnSettings: widget.data.tableColumnSettings || [],
+      rowSettings: widget.data.tableRowSettings || [],
+    };
+    const updatedRows = table.rows.map((row, rowIndex) => {
       let rowChanged = false;
-      const rowSetting = getTableRowSetting(rowSettings, rowIndex);
       const updatedCells = row.cells.map((cell, colIndex) => {
         if (isCoveredTableCell(merges, rowIndex, colIndex)) return cell;
-        const columnSetting = getTableColumnSetting(columnSettings, colIndex);
-        const cellFormula = typeof cell === 'string' ? undefined : cell.formula;
-        const rowFormula = rowSetting.formula;
-        const columnFormula = columnSetting.formula;
-        const formula = cellFormula || rowFormula || columnFormula;
+        const formula = getTableCellFormula(table, rowIndex, colIndex, labels, true)?.bound;
         if (!formula) return cell;
-        if (!cellFormula && rowFormula && formulaReferencesAnyLabel(formula, getTableRowControlledLabels(row, rowIndex, columnSettings, rowSetting, merges))) return cell;
-        if (!cellFormula && !rowFormula && columnFormula && formulaReferencesAnyLabel(formula, getTableColumnControlledLabels(widget.data.rows as TableRow[], colIndex, columnSetting, rowSettings, merges))) return cell;
-
         const computed = evaluateFormulaValue(formula, labels);
         if (computed !== null) {
           const newValue = String(computed);
@@ -2047,7 +2131,9 @@ function extractFormulaRefs(formula: string, labels: FormulaLabels = {}): string
   const formulaWithoutGroupRefs = stripGeneratedLabelGroupReferences(formula);
   const refs = extractFormulaLabelReferences(formulaWithoutGroupRefs) || [];
 
-  for (const labelPrefix of collectGeneratedLabelGroupReferences(formula)) {
+  // A bare row/column label stands for the same-position cell, so depend on every cell it could read.
+  const groupPrefixes = refs.filter(ref => !(ref in labels));
+  for (const labelPrefix of [...collectGeneratedLabelGroupReferences(formula), ...groupPrefixes]) {
     const prefixRegex = new RegExp(`^${escapeRegex(labelPrefix)}([1-9]\\d*)$`);
     refs.push(
       ...Object.keys(labels)
@@ -2234,7 +2320,8 @@ export function buildDependencyGraph(character: Character): Record<string, strin
         const merges = validateTableMerges(data).merges;
         const columnSettings = data.tableColumnSettings || [];
         const rowSettings = data.tableRowSettings || [];
-        for (const [rowIndex, row] of (data.rows as TableRow[]).entries()) {
+        const table: TableFormulaContext = { rows: data.rows as TableRow[], columnSettings, rowSettings, merges };
+        for (const [rowIndex, row] of table.rows.entries()) {
           const rowSetting = getTableRowSetting(rowSettings, rowIndex);
           const rowLabel = rowSetting.label;
           for (const [colIndex, cell] of row.cells.entries()) {
@@ -2242,11 +2329,8 @@ export function buildDependencyGraph(character: Character): Record<string, strin
             if (typeof cell !== 'string' && cell.label && cell.formula) {
               graph[cell.label] = extractFormulaRefs(cell.formula, labels);
             }
-            const columnSetting = getTableColumnSetting(columnSettings, colIndex);
-            const columnLabel = columnSetting.label;
-            const columnFormula = columnSetting.formula;
-            const rowFormula = rowSetting.formula;
-            const effectiveFormula = typeof cell === 'string' ? rowFormula || columnFormula : cell.formula || rowFormula || columnFormula;
+            const columnLabel = getTableColumnSetting(columnSettings, colIndex).label;
+            const effectiveFormula = getTableCellEvaluationFormula(table, rowIndex, colIndex, labels);
             if (rowLabel && effectiveFormula) {
               graph[`${rowLabel}${colIndex + 1}`] = extractFormulaRefs(effectiveFormula, labels);
             }

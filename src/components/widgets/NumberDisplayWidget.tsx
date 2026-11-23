@@ -259,8 +259,19 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [numberDialog]);
 
-  const { containerClassName, boxStyle, secondaryBoxStyle, numberFontSize, labelFontSize, secondaryFontSize } =
-    fitContent ? getNumberDisplayListLayout(widget.data) : getNumberDisplayLayout(widget.data, width, height);
+  const [boxArea, setBoxArea] = useState<HTMLDivElement | null>(null);
+  const [measuredWidth, setMeasuredWidth] = useState<number | undefined>();
+  useEffect(() => {
+    if (!boxArea || typeof ResizeObserver === 'undefined') return;
+    const update = () => setMeasuredWidth(boxArea.clientWidth || undefined);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(boxArea);
+    return () => observer.disconnect();
+  }, [boxArea]);
+
+  const { containerClassName, rowSize, rowClassName, boxStyle, secondaryBoxStyle, numberFontSize, labelFontSize, secondaryFontSize } =
+    fitContent ? getNumberDisplayListLayout(widget.data) : getNumberDisplayLayout(widget.data, width, height, measuredWidth);
   const stepButtonSize = Math.round(Math.min(22, Math.max(14, numberFontSize * 1.1)));
 
   return (
@@ -312,10 +323,12 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
       )}
 
       <div
+        ref={setBoxArea}
         className={`flex min-w-0 gap-1 p-1 ${fitContent ? '' : 'min-h-0 flex-1'} ${containerClassName}`}
         style={fitContent ? undefined : { containerType: 'size' }}
       >
-        {(displayNumbers as DisplayNumber[]).map((item, idx) => {
+        {(() => {
+        const boxes = (displayNumbers as DisplayNumber[]).map((item, idx) => {
           const formattedValue = formatNumberWithSign(item.value, item.showPositiveSign);
           const displayedValue = showDisplayNumberMax && item.maxValue !== undefined ? `${formattedValue}/${item.maxValue}` : formattedValue;
           const atMinimum = item.minValue !== undefined && item.value <= item.minValue;
@@ -445,7 +458,14 @@ export default function NumberDisplayWidget({ widget, mode, width, height, showF
             )}
           </div>
           );
-        })}
+        });
+        if (!rowSize) return boxes;
+        return Array.from({ length: Math.ceil(boxes.length / rowSize) }, (_, row) => (
+          <div key={row} className={rowClassName}>
+            {boxes.slice(row * rowSize, (row + 1) * rowSize)}
+          </div>
+        ));
+        })()}
         
         {displayNumbers.length === 0 && (
           <WidgetEmptyState title="No stats configured" hint={controlsVisible ? 'Use + to add a displayed number.' : undefined} compact />

@@ -142,6 +142,24 @@ function splitGroupComponents(widgets: Widget[], groupId: string): Widget[] {
   });
 }
 
+// Breaks the attachment between each pair of widgets, splitting groups that fall apart.
+function detachWidgetPairs(widgets: Widget[], pairs: [string, string][]): Widget[] {
+  const removed = new Map<string, Set<string>>();
+  for (const [a, b] of pairs) {
+    removed.set(a, (removed.get(a) ?? new Set()).add(b));
+    removed.set(b, (removed.get(b) ?? new Set()).add(a));
+  }
+  const groupIds = new Set<string>();
+  let result = widgets.map(w => {
+    const ids = removed.get(w.id);
+    if (!ids || !w.attachedTo?.some(id => ids.has(id))) return w;
+    if (w.groupId) groupIds.add(w.groupId);
+    return { ...w, attachedTo: w.attachedTo.filter(id => !ids.has(id)) };
+  });
+  for (const groupId of groupIds) result = splitGroupComponents(result, groupId);
+  return result;
+}
+
 // Helper to update the active sheet's widgets
 function updateActiveSheetWidgets(character: Character, updateFn: (widgets: Widget[]) => Widget[]): Character {
   return {
@@ -237,6 +255,8 @@ interface StoreState {
     actionDescription: string,
     extras?: {
       attachPairs?: [string, string][];
+      // Attachments to break once the layouts are applied.
+      detachPairs?: [string, string][];
       // Replaces each listed widget's Auto Stack preferences (undefined clears them).
       autoStackOptions?: Record<string, WidgetAutoStackOptions | undefined>;
     },
@@ -1666,7 +1686,8 @@ export const useStore = create<StoreState>((rawSet, get) => {
                 ...(extras?.autoStackOptions && w.id in extras.autoStackOptions ? { autoStack: extras.autoStackOptions[w.id] } : {}),
               };
             });
-            return extras?.attachPairs?.length ? attachWidgetPairs(arranged, extras.attachPairs) : arranged;
+            const attached = extras?.attachPairs?.length ? attachWidgetPairs(arranged, extras.attachPairs) : arranged;
+            return extras?.detachPairs?.length ? detachWidgetPairs(attached, extras.detachPairs) : attached;
           });
         })
       }));

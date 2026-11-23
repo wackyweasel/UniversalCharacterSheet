@@ -15,6 +15,14 @@ import {
   WIDGET_CONTROLS_DISMISS_EVENT,
 } from './widgetDragRegistry';
 import { getWidgetProbeSize, subscribeWidgetSizeProbe } from './widgetSizeProbe';
+import {
+  clearWidgetResizePreviews,
+  getWidgetResizePreview,
+  setWidgetResizePreviews,
+  subscribeWidgetResizePreview,
+  type WidgetResizePreview,
+} from './widgetResizePreview';
+import { planAttachedResize, type ResizeDirection, type ResizeWidget } from '../utils/attachedResize';
 import WidgetOptionsMenu, {
   getWidgetMenuTutorialTarget,
   isWidgetEditTutorialTarget,
@@ -79,8 +87,6 @@ const HOVERED_WIDGET_Z_INDEX = 9000;
 const SELECTED_WIDGET_Z_INDEX = 10001;
 const MENU_OPEN_Z_INDEX = 10003;
 
-type ResizeDirection = -1 | 0 | 1;
-
 // Edge and corner zones, sized in CSS; the move grip sits over the middle of the top edge.
 // Full class names keep Tailwind from purging the layered rules.
 const RESIZE_ZONES: { key: string; x: ResizeDirection; y: ResizeDirection; className: string }[] = [
@@ -116,21 +122,6 @@ function getWidgetBoxSize(candidate: Widget) {
   };
 }
 
-type WidgetBox = { x: number; y: number; width: number; height: number };
-type WidgetSide = 'left' | 'right' | 'top' | 'bottom';
-
-// The side of `box` that the neighbour touches, or null when they no longer share an edge.
-function getTouchingSide(box: WidgetBox, neighbor: Widget): WidgetSide | null {
-  const { width, height } = getWidgetBoxSize(neighbor);
-  const overlapsX = Math.min(box.x + box.width, neighbor.x + width) > Math.max(box.x, neighbor.x);
-  const overlapsY = Math.min(box.y + box.height, neighbor.y + height) > Math.max(box.y, neighbor.y);
-  if (overlapsY && Math.abs(neighbor.x + width - box.x) <= EDGE_TOLERANCE) return 'left';
-  if (overlapsY && Math.abs(neighbor.x - (box.x + box.width)) <= EDGE_TOLERANCE) return 'right';
-  if (overlapsX && Math.abs(neighbor.y + height - box.y) <= EDGE_TOLERANCE) return 'top';
-  if (overlapsX && Math.abs(neighbor.y - (box.y + box.height)) <= EDGE_TOLERANCE) return 'bottom';
-  return null;
-}
-
 const PLACEMENT_KEYS = new Set<string>(['x', 'y', 'zIndex']);
 
 function hasSameContent(previous: Widget, next: Widget) {
@@ -143,10 +134,8 @@ function hasSameContent(previous: Widget, next: Widget) {
 }
 
 function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
-  const updateWidgetPosition = useStore((state) => state.updateWidgetPosition);
-  const updateWidgetSize = useStore((state) => state.updateWidgetSize);
+  const applyWidgetLayouts = useStore((state) => state.applyWidgetLayouts);
   const bringWidgetToFront = useStore((state) => state.bringWidgetToFront);
-  const detachWidgetFrom = useStore((state) => state.detachWidgetFrom);
   const mode = useStore((state) => state.mode);
   const setEditingWidgetId = useStore((state) => state.setEditingWidgetId);
   const isSelected = useStore((state) => state.selectedWidgetId === widget.id);
@@ -215,17 +204,25 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   );
   const getProbeSize = () => getWidgetProbeSize(widget.id);
   const probeSize = useSyncExternalStore(subscribeWidgetSizeProbe, getProbeSize, getProbeSize);
+  // Set while an attached neighbour is being resized by dragging the edge it shares with this widget.
+  const getFollowPreview = () => getWidgetResizePreview(widget.id);
+  const followPreview = useSyncExternalStore(subscribeWidgetResizePreview, getFollowPreview, getFollowPreview);
 
   const cancelResize = useCallback(() => {
     if (!resizeCleanupRef.current) return;
     resizeCleanupRef.current();
     resizeCleanupRef.current = null;
+    clearWidgetResizePreviews();
     setResizePreview(null);
     setIsResizing(false);
   }, []);
 
   useTouchCameraPinchCancellation(cancelResize);
-  useEffect(() => () => resizeCleanupRef.current?.(), []);
+  useEffect(() => () => {
+    if (!resizeCleanupRef.current) return;
+    resizeCleanupRef.current();
+    clearWidgetResizePreviews();
+  }, []);
 
   const isWidgetHeaderHidden = widget.type !== 'LABEL' && widget.type !== 'IMAGE' && widget.data.hideWidgetHeader === true;
   const isWidgetEditButtonHidden = widget.data.hideWidgetEditButton === true;
@@ -350,6 +347,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const getWidgetWidth = () => {
     if (probeSize) return probeSize.w;
     if (resizePreview?.w !== undefined) return resizePreview.w;
+    if (followPreview?.w !== undefined) return followPreview.w;
     // Use custom width if set on the widget
     if (widget.w) {
       return widget.w;
@@ -394,40 +392,63 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       x: widget.x,
       y: widget.y,
     };
-    const { id: widgetId, w: startW, h: startH } = widget;
+    const { id: widgetId } = widget;
     const pointerId = event.pointerId;
     const source: WidgetSelectionSource = event.pointerType === 'touch' ? 'touch' : 'pointer';
-    let preview: { x: number; y: number; w?: number; h?: number } | null = null;
-    let detached = false;
+    let moved = false;
 
-    // Neighbours on the dragged edges detach; the others stay attached while they still touch.
-    const isMovingSide = (side: WidgetSide | null) => (
-      (side === 'left' && dirX === -1) || (side === 'right' && dirX === 1)
-      || (side === 'top' && dirY === -1) || (side === 'bottom' && dirY === 1)
-    );
-    const neighbors = selectActiveSheetWidgets(useStore.getState())
-      .filter((candidate) => widget.attachedTo?.includes(candidate.id))
-      .map((candidate) => ({ candidate, side: getTouchingSide(start, candidate) }));
-    const movingEdgeNeighborIds = neighbors.filter(({ side }) => isMovingSide(side)).map(({ candidate }) => candidate.id);
-    const keptNeighbors = neighbors.filter(({ side }) => side && !isMovingSide(side)).map(({ candidate }) => candidate);
+    // Attached widgets that share a dragged edge follow it; the rest stay put while they still touch.
+    const toResizeWidget = (candidate: Widget): ResizeWidget => {
+      const { width, height } = getWidgetBoxSize(candidate);
+      return {
+        id: candidate.id,
+        box: { x: candidate.x, y: candidate.y, width, height },
+        min: getMinWidgetDimensions(candidate.type),
+        attachedTo: candidate.attachedTo ?? [],
+        locked: candidate.locked,
+      };
+    };
+    const groupMembers = widget.groupId
+      ? selectActiveSheetWidgets(useStore.getState()).filter((candidate) => candidate.groupId === widget.groupId && candidate.id !== widgetId)
+      : [];
+    const target: ResizeWidget = {
+      id: widgetId,
+      box: { x: start.x, y: start.y, width: start.width, height: start.height },
+      min: { width: minResizeWidth, height: minResizeHeight },
+      attachedTo: widget.attachedTo ?? [],
+    };
+    const others = groupMembers.map(toResizeWidget);
+    let plan: ReturnType<typeof planAttachedResize> | null = null;
 
     const handleMove = (moveEvent: PointerEvent) => {
       if (moveEvent.pointerId !== pointerId) return;
       const deltaX = (moveEvent.clientX - start.clientX) / scale;
       const deltaY = (moveEvent.clientY - start.clientY) / scale;
-      const w = dirX === 0 ? undefined : snapToGrid(Math.max(minResizeWidth, start.width + dirX * deltaX));
-      const h = dirY === 0 ? undefined : snapToGrid(Math.max(minResizeHeight, start.height + dirY * deltaY));
-      const changed = (w !== undefined && w !== start.width) || (h !== undefined && h !== start.height);
-      if (!preview && !changed) return;
-      const x = dirX === -1 && w !== undefined ? start.x + start.width - w : start.x;
-      const y = dirY === -1 && h !== undefined ? start.y + start.height - h : start.y;
-      if (preview && preview.w === w && preview.h === h && preview.x === x && preview.y === y) return;
-      if (!detached && movingEdgeNeighborIds.length > 0) {
-        detached = true;
-        detachWidgetFrom(widgetId, movingEdgeNeighborIds);
+      const next = planAttachedResize(target, dirX, dirY, deltaX, deltaY, others);
+      const nextBox = next.layouts[0].box;
+      const changed = nextBox.width !== start.width || nextBox.height !== start.height;
+      if (!moved && !changed) return;
+      const previous = plan?.layouts[0].box;
+      if (previous && previous.width === nextBox.width && previous.height === nextBox.height
+        && previous.x === nextBox.x && previous.y === nextBox.y) return;
+      moved = true;
+      plan = next;
+      setResizePreview({
+        x: nextBox.x,
+        y: nextBox.y,
+        w: dirX === 0 ? undefined : nextBox.width,
+        h: dirY === 0 ? undefined : nextBox.height,
+      });
+      const followers = new Map<string, WidgetResizePreview>();
+      for (const layout of next.layouts.slice(1)) {
+        followers.set(layout.id, {
+          x: layout.box.x,
+          y: layout.box.y,
+          w: layout.resizedX ? layout.box.width : undefined,
+          h: layout.resizedY ? layout.box.height : undefined,
+        });
       }
-      preview = { x, y, w, h };
-      setResizePreview(preview);
+      setWidgetResizePreviews(followers);
     };
 
     const removeListeners = () => {
@@ -440,17 +461,25 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
       if (upEvent.pointerId !== pointerId) return;
       removeListeners();
       resizeCleanupRef.current = null;
-      if (preview) {
-        if (dirX === -1 || dirY === -1) updateWidgetPosition(widgetId, preview.x, preview.y);
-        updateWidgetSize(widgetId, preview.w ?? startW, preview.h ?? startH);
-        const endBox = { x: preview.x, y: preview.y, width: preview.w ?? start.width, height: preview.h ?? start.height };
-        const separatedIds = keptNeighbors.filter((neighbor) => !getTouchingSide(endBox, neighbor)).map((neighbor) => neighbor.id);
-        if (separatedIds.length > 0) detachWidgetFrom(widgetId, separatedIds);
+      if (plan) {
+        applyWidgetLayouts(
+          plan.layouts.map((layout) => ({
+            id: layout.id,
+            x: layout.box.x,
+            y: layout.box.y,
+            w: layout.resizedX ? layout.box.width : undefined,
+            h: layout.resizedY ? layout.box.height : undefined,
+          })),
+          'Resize widget',
+          { detachPairs: plan.detach },
+        );
       }
+      clearWidgetResizePreviews();
       setResizePreview(null);
       setIsResizing(false);
       setSelectedWidgetId(widgetId, source);
     }
+
 
     function handleCancel(cancelEvent: PointerEvent) {
       if (cancelEvent.pointerId === pointerId) cancelResize();
@@ -464,7 +493,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   };
   
   // Calculate height - use manual height if set, otherwise use snapped auto height
-  const widgetHeight = probeSize?.h ?? resizePreview?.h ?? (widget.h && widget.h > 0 ? widget.h : snappedHeight);
+  const widgetHeight = probeSize?.h ?? resizePreview?.h ?? followPreview?.h ?? (widget.h && widget.h > 0 ? widget.h : snappedHeight);
 
   // Group members and attached widgets; unchanged widget objects keep this stable across unrelated store updates.
   const relatedWidgets = useStore(useShallow((state) => (
@@ -693,7 +722,7 @@ function DraggableWidget({ widget, scale, isSearchTarget = false }: Props) {
   const canArrange = mode !== 'print' && !widget.locked;
   const showTapBar = isTapRevealed && canArrange;
   const showMenuTrigger = mode !== 'print' && menuAllowed && (isSelected || menu !== null || isMenuTutorialTarget);
-  const position = resizePreview ?? widget;
+  const position = resizePreview ?? followPreview ?? widget;
 
   return (
     <>

@@ -250,6 +250,17 @@ describe('widget conversion', () => {
     expect(convertWidgetData(notes, 'LIST')!.data.items).toEqual(['First', 'Second line']);
   });
 
+  it('shows every converted item in a list, not just the default five', () => {
+    const lines = Array.from({ length: 15 }, (_, index) => `Line ${index + 1}`);
+    const notes = widget('TEXT', { richText: `<ul>${lines.map((line) => `<li><p>${line}</p></li>`).join('')}</ul>` });
+    const list = convertWidgetData(notes, 'LIST')!;
+    expect(list.data.items).toEqual(lines);
+    expect(list.data.itemCount).toBe(15);
+
+    const checklist = widget('CHECKBOX', { checkboxItems: lines.map((name) => ({ name, checked: false })) });
+    expect(convertWidgetData(checklist, 'LIST')!.data.itemCount).toBe(15);
+  });
+
   it('turns an inventory into a codex and back', () => {
     const inventory = widget('INVENTORY', {
       inventoryItems: [{ id: 'a', name: 'Arrow', quantity: 20, fields: [] }],

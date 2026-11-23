@@ -37,6 +37,16 @@ export function useChangelogOnLoad(ready: boolean): [{ lastSeenVersion: string |
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.18.3',
+    changes: [
+      'Table column and row formulas can now use the labels of other columns or rows. Each row uses its own values. Ex: a column formula "@bonus + @base" adds the "base" cell of the same row.',
+      'Table: fixed dragging a row to reorder it, which moved the camera instead.',
+            'Converting a widget to a List no longer hides items past the fifth.',
+      'Resizing attached widgets by their shared edge now moves both widgets\' edges.',
+      'Number Display widgets in Auto layout now spread their numbers evenly across rows.',
+    ],
+  },
+  {
     version: '1.18.2',
     changes: [
       'Event dice rolls can now have a target number, with one path out for a roll that reaches it (greater or equal) and one for a roll that falls short (smaller).',

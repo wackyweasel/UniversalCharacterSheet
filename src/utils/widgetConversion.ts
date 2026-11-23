@@ -1240,6 +1240,8 @@ export function convertWidgetData(
   if (!output) return null;
 
   const data = compact({ ...pick(widget.data, KEPT_KEYS), ...output.data });
+  // A list only shows `itemCount` slots (5 by default), so converted items beyond that would be hidden.
+  if (target === 'LIST' && data.items && data.items.length > 0) data.itemCount = data.items.length;
   const warnings = [...(output.warnings ?? [])];
   const notes = [...(output.notes ?? [])];
   const carried: string[] = [];

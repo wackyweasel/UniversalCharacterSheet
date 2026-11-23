@@ -46,6 +46,55 @@ describe('inline formula table cells', () => {
   });
 });
 
+describe('row and column formulas reading neighbouring labels', () => {
+  const resolvedRows = (data: WidgetData, source: Record<string, number> = {}) => {
+    const resolved = resolveCharacterFormulas(characterWithTable(data, source));
+    return resolved?.sheets[0].widgets[0].data.rows?.map(row => row.cells.map(cell => typeof cell === 'string' ? cell : cell.value));
+  };
+
+  it('binds a bare column label in a column formula to the same row', () => {
+    expect(resolvedRows({
+      columns: ['AA', 'CV'],
+      rows: [{ cells: ['', '10'] }, { cells: ['', '6'] }, { cells: ['', ''] }, { cells: ['', 'n/a'] }],
+      tableColumnSettings: [{ label: 'aa_check', formula: '@AA - @cv' }, { label: 'cv' }],
+    }, { AA: 40 })).toEqual([['30', '10'], ['34', '6'], ['40', ''], ['', 'n/a']]);
+  });
+
+  it('binds a bare row label in a row formula to the same column', () => {
+    expect(resolvedRows({
+      rows: [{ cells: ['', ''] }, { cells: ['3', '4'] }],
+      tableRowSettings: [{ formula: '@base * @bonus' }, { label: 'bonus' }],
+    }, { base: 2 })).toEqual([['6', '8'], ['3', '4']]);
+  });
+
+  it('keeps group references and real labels meaning what they did', () => {
+    expect(resolvedRows({
+      rows: [{ cells: ['', '10'] }, { cells: ['', '6'] }],
+      tableColumnSettings: [{ formula: 'SUM(@cv) + @cv' }, { label: 'cv' }],
+    })).toEqual([['26', '10'], ['22', '6']]);
+    expect(resolvedRows({
+      rows: [{ cells: ['', '10'] }],
+      tableColumnSettings: [{ formula: '@cv + 1' }, { label: 'cv' }],
+    }, { cv: 100 })).toEqual([['101', '10']]);
+  });
+
+  it('does not run a column formula that reads its own column label', () => {
+    expect(resolvedRows({
+      rows: [{ cells: ['5'] }],
+      tableColumnSettings: [{ label: 'own', formula: '@own + 1' }],
+    })).toBeUndefined();
+  });
+
+  it('reports bound references in the dependency graph and detects cycles through them', () => {
+    const character = characterWithTable({
+      rows: [{ cells: ['0', '10'] }, { cells: ['0', '6'] }],
+      tableColumnSettings: [{ label: 'aa', formula: '@cv * 2' }, { label: 'cv' }],
+    });
+    expect(buildDependencyGraph(character)).toEqual({ aa1: ['cv1'], aa2: ['cv2'] });
+    expect(detectCircularReference('cv1', '@aa', character)).toEqual(['cv1', 'aa1', 'cv1']);
+  });
+});
+
 describe('merged table formulas', () => {
   it('collects only visible explicit and generated labels, preserving physical indexes', () => {
     const data = mergedData();

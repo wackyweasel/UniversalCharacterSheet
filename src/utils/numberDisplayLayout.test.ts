@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getNumberDisplayLayout, getNumberDisplayListLayout } from './numberDisplayLayout';
+import { getBalancedRowSize, getNumberDisplayLayout, getNumberDisplayListLayout } from './numberDisplayLayout';
 
 describe('number display layout compatibility', () => {
   it('defaults saved widgets without settings to the original horizontal sizing', () => {
@@ -52,16 +52,16 @@ describe('number display layout compatibility', () => {
       paddingLeft: `${6 * 0.71}px`,
       paddingRight: `${6 * 0.71}px`,
     });
-    expect(result.containerClassName).toContain(displayLayout === 'auto' ? 'flex-wrap' : 'flex-nowrap');
-    expect(result.containerClassName).toContain(displayLayout === 'vertical' ? 'flex-col' : 'flex-row');
+    expect(result.containerClassName).toContain(displayLayout === 'vertical' || displayLayout === 'auto' ? 'flex-col' : 'flex-row');
+    expect(result.containerClassName).toContain('flex-nowrap');
     expect(result).toEqual(getNumberDisplayLayout(data, 300, 40));
     expect(result.boxStyle).not.toEqual(getNumberDisplayLayout({ ...data, numberBoxScale: 70 }, 300, 200).boxStyle);
   });
 
   it('allows Auto wrapping without fixing the aspect ratio', () => {
     const result = getNumberDisplayLayout({ displayLayout: 'auto', numberBoxFixedAspectRatio: false }, 200, 200);
-    expect(result.containerClassName).toContain('flex-wrap');
-    expect(result.containerClassName).toContain('items-stretch');
+    expect(result.containerClassName).toContain('flex-col');
+    expect(result.rowClassName).toContain('items-stretch');
     expect(result.boxStyle.aspectRatio).toBeUndefined();
     expect(result.boxStyle.flex).toBe('1 1 70px');
   });
@@ -103,6 +103,42 @@ describe('number display layout compatibility', () => {
       paddingLeft: '3.5999999999999996px',
       paddingRight: '3.5999999999999996px',
     });
+  });
+});
+
+describe('number display balanced rows', () => {
+  const numbers = (count: number) => Array.from({ length: count }, () => ({ label: 'Score', value: 12 }));
+  const fixed = (count: number) => ({
+    displayLayout: 'auto' as const,
+    numberBoxFixedAspectRatio: true,
+    numberBoxDynamic: false,
+    numberBoxScale: 100,
+    displayNumbers: numbers(count),
+  });
+
+  it('evens out rows instead of filling the first row', () => {
+    expect(getBalancedRowSize(15, 9)).toBe(8);
+    expect(getBalancedRowSize(10, 9)).toBe(5);
+    expect(getBalancedRowSize(12, 4)).toBe(4);
+    expect(getBalancedRowSize(3, 9)).toBe(3);
+    expect(getBalancedRowSize(5, 0)).toBe(1);
+  });
+
+  it('balances fixed-size boxes using the measured width', () => {
+    // 742px holds 9 boxes of 70px (+4px gaps and 8px padding), so 15 boxes become 8 + 7.
+    expect(getNumberDisplayLayout(fixed(15), 744, 154, 742).rowSize).toBe(8);
+    expect(getNumberDisplayLayout(fixed(18), 744, 154, 742).rowSize).toBe(9);
+    expect(getNumberDisplayLayout(fixed(6), 744, 154, 742).rowSize).toBe(6);
+  });
+
+  it('balances adaptive boxes and dynamic square boxes', () => {
+    expect(getNumberDisplayLayout({ displayLayout: 'auto', numberBoxFixedAspectRatio: false, displayNumbers: numbers(15) }, 744, 154, 742).rowSize).toBe(8);
+    const dynamic = getNumberDisplayLayout({ displayLayout: 'auto', numberBoxFixedAspectRatio: true, displayNumbers: numbers(15) }, 400, 400);
+    expect(getBalancedRowSize(15, dynamic.rowSize!)).toBe(dynamic.rowSize);
+  });
+
+  it('leaves other arrangements alone', () => {
+    expect(getNumberDisplayLayout({ displayLayout: 'horizontal', displayNumbers: numbers(15) }, 744, 154).rowSize).toBeUndefined();
   });
 });
 

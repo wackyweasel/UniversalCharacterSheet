@@ -43,6 +43,8 @@ interface FormulaEditorDialogProps {
   sourceLabels?: string[];
   excludedLabels?: string[];
   selfReferenceMessage?: string;
+  /** Labels that resolve to a different value per row/column (e.g. bare table column labels in a column formula). Previewed with the first position. */
+  contextLabels?: { title: string; description: string; labels: string[] };
   /** 'text' allows text results; 'number' (default) reports text results as invalid. */
   resultType?: 'number' | 'text';
   tutorialTargetPrefix?: string;
@@ -67,6 +69,7 @@ export function FormulaEditorDialog({
   sourceLabels = [],
   excludedLabels = [],
   selfReferenceMessage,
+  contextLabels,
   resultType = 'number',
   tutorialTargetPrefix,
   highlightApply = false,
@@ -85,7 +88,14 @@ export function FormulaEditorDialog({
   const highlightRef = useRef<HTMLDivElement>(null);
   const referenceDetailRef = useRef<HTMLDivElement>(null);
 
-  const labels = useMemo(() => character ? collectLabels(character) : {}, [character]);
+  const collectedLabels = useMemo(() => character ? collectLabels(character) : {}, [character]);
+  const contextItems = useMemo(() => (contextLabels?.labels ?? [])
+    .filter((label) => !(label in collectedLabels))
+    .map((label) => ({ label, value: collectedLabels[`${label}1`] ?? 0 })), [collectedLabels, contextLabels?.labels]);
+  const labels = useMemo(
+    () => ({ ...Object.fromEntries(contextItems.map((item) => [item.label, item.value])), ...collectedLabels }),
+    [collectedLabels, contextItems]
+  );
   const sourceLabelSet = useMemo(() => new Set(sourceLabels), [sourceLabels]);
   const excludedLabelSet = useMemo(
     () => new Set([...sourceLabels, ...excludedLabels]),
@@ -183,6 +193,11 @@ export function FormulaEditorDialog({
       return [item.label, item.widgetLabel, item.sheetName].some((value) => value.toLowerCase().includes(query));
     });
   }, [character, excludedLabelSet, labelSearch]);
+
+  const visibleContextItems = useMemo(() => {
+    const query = labelSearch.trim().toLowerCase();
+    return query ? contextItems.filter((item) => item.label.toLowerCase().includes(query) || contextLabels?.title.toLowerCase().includes(query)) : contextItems;
+  }, [contextItems, contextLabels?.title, labelSearch]);
 
   const labelGroups = useMemo(() => {
     const groups = new Map<string, typeof availableLabels>();
@@ -290,7 +305,7 @@ export function FormulaEditorDialog({
           <h3 id="formula-labels-title" className="text-sm font-bold text-theme-ink">Available labels</h3>
           <p className="text-[11px] text-theme-muted">Click a value to insert it at the cursor.</p>
         </div>
-        <span className="text-[11px] tabular-nums text-theme-muted">{availableLabels.length}</span>
+        <span className="text-[11px] tabular-nums text-theme-muted">{availableLabels.length + visibleContextItems.length}</span>
       </div>
       <label className="relative mb-2 block">
         <span className="sr-only">Search labels</span>
@@ -304,12 +319,35 @@ export function FormulaEditorDialog({
         />
       </label>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-2 pr-1">
-        {labelGroups.length === 0 && (
+        {labelGroups.length === 0 && visibleContextItems.length === 0 && (
           <p className="px-2 py-6 text-center text-xs text-theme-muted">
             {labelSearch ? 'No labels match this search.' : 'This character has no other numeric labels or menu selections yet.'}
           </p>
         )}
         <div className="space-y-3">
+          {contextLabels && visibleContextItems.length > 0 && (
+            <div>
+              <div className="mb-1 px-1">
+                <span className="text-[11px] font-bold text-theme-ink">{contextLabels.title}</span>
+                <p className="text-[10px] text-theme-muted">{contextLabels.description}</p>
+              </div>
+              <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                {visibleContextItems.map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => insertLabel(item.label)}
+                    data-formula-label={item.label}
+                    className="flex min-w-0 items-center justify-between gap-2 rounded-button border border-theme-border bg-theme-paper px-2 py-1.5 text-left transition-colors hover:border-theme-accent hover:bg-theme-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-accent"
+                    title={`Insert @${item.label}`}
+                  >
+                    <span className="min-w-0 truncate font-mono text-xs font-bold text-theme-accent">@{item.label}</span>
+                    <span className="max-w-[45%] truncate font-mono text-[11px] text-theme-muted" title={String(item.value)}>{typeof item.value === 'string' ? (item.value || '""') : item.value}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {labelGroups.map((group) => (
             <div key={group.key}>
               <div className="mb-1 flex min-w-0 items-baseline gap-1.5 px-1">
