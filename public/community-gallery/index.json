@@ -455,6 +455,30 @@
       "description": "Template",
       "file": "presets/fangs_of_the_bastion_charactersheet.json",
       "gameSystem": "Fangs of the Bastion"
+    },
+    {
+      "id": "58",
+      "name": "Archimalzain",
+      "author": "@Achimalzain",
+      "description": "For le daisy",
+      "file": "presets/archimalzain.json",
+      "gameSystem": "Fantastica"
+    },
+    {
+      "id": "59",
+      "name": "Soul-Template_v0.0.1",
+      "author": "@Soup",
+      "description": "Little test sheet",
+      "file": "presets/soul_template_v0_0_1.json",
+      "gameSystem": "SOLE"
+    },
+    {
+      "id": "60",
+      "name": "Template for FE/DND",
+      "author": "@Poechop",
+      "description": "A shitly made mix of Fire Emblem Stats and DND. Anyone can do better.",
+      "file": "presets/template_for_fe_dnd.json",
+      "gameSystem": "Fire Emblem + DnD."
     }
   ],
   "themes": [
