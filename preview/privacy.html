@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Privacy Policy | Universal Character Sheet</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: Georgia, "Times New Roman", serif;
+        color: #292722;
+        background: #f4f0e8;
+      }
+
+      body {
+        margin: 0;
+        background:
+          linear-gradient(rgba(91, 77, 52, 0.06) 1px, transparent 1px),
+          #f4f0e8;
+        background-size: 100% 2rem;
+      }
+
+      main {
+        width: min(44rem, calc(100% - 2rem));
+        margin: 0 auto;
+        padding: 4rem 0 5rem;
+      }
+
+      h1,
+      h2 {
+        color: #184c45;
+        letter-spacing: 0;
+      }
+
+      h1 {
+        margin: 0 0 0.5rem;
+        font-size: clamp(2rem, 8vw, 3.5rem);
+        line-height: 1;
+      }
+
+      h2 {
+        margin-top: 2rem;
+        font-size: 1.25rem;
+      }
+
+      p,
+      li {
+        font-size: 1.05rem;
+        line-height: 1.7;
+      }
+
+      a {
+        color: #a23d2b;
+      }
+
+      .effective-date {
+        margin-bottom: 2.5rem;
+        color: #625e55;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color: #eee9df;
+          background: #191d1c;
+        }
+
+        body {
+          background:
+            linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+            #191d1c;
+          background-size: 100% 2rem;
+        }
+
+        h1,
+        h2 {
+          color: #75b9a8;
+        }
+
+        a {
+          color: #ef9b83;
+        }
+
+        .effective-date {
+          color: #b9b3a8;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Privacy Policy</h1>
+      <p class="effective-date">Effective August 28, 2026</p>
+
+      <p>
+        Universal Character Sheet is a browser-based application for creating and managing tabletop role-playing
+        character sheets. This policy explains how the application handles your information.
+      </p>
+
+      <h2>Information the application handles</h2>
+      <p>
+        Character sheets and related content are stored in the workspace you choose. Browser workspaces use storage
+        on your device. Local-directory workspaces use a directory you select. Some preferences, themes, templates,
+        and presets remain in browser storage. The application also keeps a browser cache of workspace data and
+        pending changes so it can recover from interrupted saves and support offline use.
+      </p>
+
+      <h2>Google Drive</h2>
+      <p>
+        If you connect Google Drive, Universal Character Sheet requests permission to create, open, update, and find
+        only the Drive files that you create with or explicitly open in the application. The application uses this
+        access solely to provide the Google Drive workspace features you request. It does not sell, share, or use your
+        Google Drive data for advertising.
+      </p>
+      <p>
+        Google access tokens are used by the application in your browser to make requested Drive operations. They are
+        not sent to or stored on an application server.
+      </p>
+
+      <h2>Telemetry</h2>
+      <p>
+        The application automatically sends feature usage, technical events, persistent browser and session
+        identifiers, character and sheet identifiers, and an image-stripped snapshot of the active character after a
+        successful save. The snapshot can include character-sheet text and form values, but excludes uploaded image
+        data and map drawings. This telemetry is sent to a Google Apps Script endpoint and is used to understand usage
+        and improve the application. It is not used for advertising or sold to third parties.
+      </p>
+
+      <h2>Retention and deletion</h2>
+      <p>
+        You control the content in your workspaces. You can delete local data using the application or your browser,
+        remove local-directory files with your device's file tools, and delete Google Drive workspace files from
+        Google Drive. You can revoke the application's Google access at any time in your Google Account settings.
+        Clearing this content does not automatically remove telemetry that was previously submitted.
+      </p>
+
+      <h2>Third-party services</h2>
+      <p>
+        Google Drive features and telemetry processing through Google Apps Script are subject to Google's privacy
+        policy and terms. The hosted application may also be delivered through GitHub Pages, which may process
+        standard web request information under GitHub's privacy statement.
+      </p>
+
+      <h2>Changes</h2>
+      <p>
+        This policy may be updated when the application's data practices change. The effective date above identifies
+        the latest version.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about this policy can be submitted through the project's
+        <a href="https://github.com/wackyweasel/UniversalCharacterSheet/issues">GitHub issue tracker</a>.
+      </p>
+
+      <p><a href="./">Return to Universal Character Sheet</a></p>
+    </main>
+  </body>
+</html>
