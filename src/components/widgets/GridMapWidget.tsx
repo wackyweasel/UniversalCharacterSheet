@@ -1,11 +1,14 @@
-import { FormEvent, KeyboardEvent, PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { KeyboardEvent, PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { InlineFormulaText } from '../InlineFormulaText';
 import { v4 as uuidv4 } from 'uuid';
 import { GridMapPoint, GridMapToken, GridMapTokenSize, GridMapWall, Widget } from '../../types';
 import { useTouchCameraPinchCancellation } from '../../hooks/useTouchCamera';
 import { useStore } from '../../store/useStore';
-import { CheckIcon, EraserIcon, HandIcon, MinusIcon, PencilIcon, PlusIcon, PointerIcon, ResetIcon, RulerIcon, TrashIcon, UndoIcon, WallIcon, XIcon } from '../icons';
+import { EraserIcon, HandIcon, MinusIcon, PencilIcon, PlusIcon, PointerIcon, ResetIcon, RulerIcon, TrashIcon, UndoIcon, WallIcon } from '../icons';
 import { Tooltip } from '../Tooltip';
+import { SQUARE_TOKEN_CELLS, readableTextColor } from '../../utils/gridMapTokens';
+import { CaptionLayout, drawTokenBars, drawTokenBody, drawTokenCaption, layoutTokenCaption } from '../../utils/gridMapTokenRendering';
+import { GridMapTokenDialog, GridMapTokenDraft } from './GridMapTokenDialog';
 
 interface Props {
   widget: Widget;
@@ -17,7 +20,7 @@ interface Props {
 }
 
 type Tool = 'select' | 'pan' | 'measure' | 'wall' | 'erase';
-type TokenDialog = 'add' | 'edit' | null;
+type TokenDialogState = { mode: 'add' } | { mode: 'edit'; tokenId: string } | null;
 
 interface CanvasSize {
   width: number;
@@ -36,6 +39,8 @@ interface TokenDrag {
   current: GridMapPoint;
   pointerOffset: { x: number; y: number };
   previewCenter: { x: number; y: number };
+  startCanvasPoint: { x: number; y: number };
+  moved: boolean;
 }
 
 interface WallDraft {
@@ -64,31 +69,6 @@ interface PixelPoint {
 const MAX_UNDO_STEPS = 30;
 const MIN_MAP_ZOOM = 0.2;
 const MAX_MAP_ZOOM = 3;
-const TOKEN_SIZES: GridMapTokenSize[] = ['tiny', 'medium', 'large', 'huge', 'gargantuan'];
-
-const TOKEN_SIZE_NAMES: Record<GridMapTokenSize, string> = {
-  tiny: 'Tiny',
-  medium: 'Medium',
-  large: 'Large',
-  huge: 'Huge',
-  gargantuan: 'Gargantuan',
-};
-
-const SQUARE_TOKEN_CELLS: Record<GridMapTokenSize, number> = {
-  tiny: 0.5,
-  medium: 1,
-  large: 4,
-  huge: 9,
-  gargantuan: 16,
-};
-
-const HEX_TOKEN_CELLS: Record<GridMapTokenSize, number> = {
-  tiny: 0.5,
-  medium: 1,
-  large: 3,
-  huge: 7,
-  gargantuan: 19,
-};
 
 function pointsEqual(first: GridMapPoint, second: GridMapPoint) {
   return first.column === second.column && first.row === second.row;
@@ -140,25 +120,6 @@ function tracePointyHex(context: CanvasRenderingContext2D, center: PixelPoint, r
   context.closePath();
 }
 
-function wrapTokenName(context: CanvasRenderingContext2D, name: string, maxWidth: number, maxLines = 3) {
-  const words = name.trim().split(/\s+/);
-  const lines: string[] = [];
-
-  for (const word of words) {
-    const candidate = lines.length === 0 ? word : `${lines[lines.length - 1]} ${word}`;
-    if (lines.length === 0 || context.measureText(candidate).width <= maxWidth) {
-      if (lines.length === 0) lines.push(word);
-      else lines[lines.length - 1] = candidate;
-    } else if (lines.length < maxLines) {
-      lines.push(word);
-    } else {
-      lines[maxLines - 1] = `${lines[maxLines - 1]} ${word}`;
-    }
-  }
-
-  return lines;
-}
-
 function getInnerTokenFontSize(context: CanvasRenderingContext2D, name: string, preferredSize: number, maxWidth: number) {
   for (let size = preferredSize; size >= 6.5; size -= 0.5) {
     context.font = `600 ${size}px sans-serif`;
@@ -193,6 +154,17 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
     gridMapDefaultTokenColor = '#2563eb',
     gridMapCellDistance = 5,
     gridMapDistanceUnit = 'ft',
+    gridMapShowGrid = true,
+    gridMapGridOpacity = 1,
+    gridMapGridLineWidth = 1,
+    gridMapGridStyle = 'solid',
+    gridMapMajorLineEvery = 5,
+    gridMapBackgroundColor,
+    gridMapBackgroundImage,
+    gridMapBackgroundWidthCells = 30,
+    gridMapBackgroundOffsetX = 0,
+    gridMapBackgroundOffsetY = 0,
+    gridMapBackgroundOpacity = 1,
   } = widget.data;
 
   const [tokens, setTokens] = useState<GridMapToken[]>(widget.data.gridMapTokens || []);
@@ -207,16 +179,28 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [mapZoom, setMapZoom] = useState(1);
   const [undoHistory, setUndoHistory] = useState<SceneSnapshot[]>([]);
-  const [tokenDialog, setTokenDialog] = useState<TokenDialog>(null);
-  const [tokenName, setTokenName] = useState('');
-  const [tokenColor, setTokenColor] = useState(gridMapDefaultTokenColor);
-  const [tokenSize, setTokenSize] = useState<GridMapTokenSize>('medium');
+  const [tokenDialog, setTokenDialog] = useState<TokenDialogState>(null);
+  const [imageVersion, setImageVersion] = useState(0);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [canvasSize, setCanvasSize] = useState<CanvasSize>({ width: 1, height: 1 });
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasShellRef = useRef<HTMLDivElement>(null);
   const activePointerRef = useRef<number | null>(null);
+  const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
+
+  const getTokenImage = useCallback((source: string | undefined) => {
+    if (!source) return null;
+    const cache = imageCacheRef.current;
+    let image = cache.get(source);
+    if (!image) {
+      image = new Image();
+      image.onload = () => setImageVersion((version) => version + 1);
+      image.src = source;
+      cache.set(source, image);
+    }
+    return image.complete && image.naturalWidth > 0 ? image : null;
+  }, []);
 
   const canInteract = interactive && mode !== 'print';
   const measurementDistanceLabel = measurement ? (() => {
@@ -456,19 +440,8 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
     return null;
   }, [gridMapGridSize, gridMapWallWidth, mapZoom, walls]);
 
-  const beginTokenDialog = (dialog: Exclude<TokenDialog, null>) => {
-    if (dialog === 'edit') {
-      const selected = tokens.find((token) => token.id === selectedTokenId);
-      if (!selected) return;
-      setTokenName(selected.name);
-      setTokenColor(selected.color);
-      setTokenSize(selected.size || 'medium');
-    } else {
-      setTokenName('');
-      setTokenColor(gridMapDefaultTokenColor);
-      setTokenSize('medium');
-    }
-    setTokenDialog(dialog);
+  const openEditDialog = (tokenId: string | null) => {
+    if (tokenId && tokens.some((token) => token.id === tokenId)) setTokenDialog({ mode: 'edit', tokenId });
   };
 
   const findOpenCell = (size: GridMapTokenSize) => {
@@ -492,22 +465,26 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
     return candidates.find((candidate) => !occupied.has(`${candidate.column}:${candidate.row}`)) || center;
   };
 
-  const submitTokenDialog = (event: FormEvent) => {
-    event.preventDefault();
-    const name = tokenName.trim();
-    if (!name) return;
-
-    if (tokenDialog === 'edit' && selectedTokenId) {
-      const nextTokens = tokens.map((token) => token.id === selectedTokenId ? { ...token, name, color: tokenColor, size: tokenSize } : token);
-      commitScene(nextTokens, walls);
+  const saveTokenDialog = (draft: GridMapTokenDraft) => {
+    if (tokenDialog?.mode === 'edit') {
+      const { tokenId } = tokenDialog;
+      commitScene(tokens.map((token) => token.id === tokenId ? { ...token, ...draft } : token), walls);
     } else {
-      const cell = findOpenCell(tokenSize);
-      const token: GridMapToken = { id: uuidv4(), name, color: tokenColor, size: tokenSize, ...cell };
+      const cell = findOpenCell(draft.size || 'medium');
+      const token: GridMapToken = { id: uuidv4(), ...draft, ...cell };
       commitScene([...tokens, token], walls);
       setSelectedTokenId(token.id);
       setTool('select');
     }
 
+    setTokenDialog(null);
+  };
+
+  const deleteDialogToken = () => {
+    if (tokenDialog?.mode !== 'edit') return;
+    const { tokenId } = tokenDialog;
+    commitScene(tokens.filter((token) => token.id !== tokenId), walls);
+    if (selectedTokenId === tokenId) setSelectedTokenId(null);
     setTokenDialog(null);
   };
 
@@ -550,6 +527,8 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
           current: { column: token.column, row: token.row },
           pointerOffset: { x: point.x - center.x, y: point.y - center.y },
           previewCenter: center,
+          startCanvasPoint: canvasPoint,
+          moved: false,
         });
       }
       return;
@@ -595,7 +574,12 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
         y: Math.max(firstCellCenter.y, point.y - tokenDrag.pointerOffset.y),
       };
       const draggedToken = tokens.find((token) => token.id === tokenDrag.tokenId);
-      setTokenDrag({ ...tokenDrag, current: snapTokenAnchor(previewCenter, draggedToken?.size), previewCenter });
+      setTokenDrag({
+        ...tokenDrag,
+        current: snapTokenAnchor(previewCenter, draggedToken?.size),
+        previewCenter,
+        moved: tokenDrag.moved || Math.hypot(canvasPoint.x - tokenDrag.startCanvasPoint.x, canvasPoint.y - tokenDrag.startCanvasPoint.y) > 4,
+      });
       return;
     }
 
@@ -621,7 +605,9 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
       setPanDrag(null);
     } else if (tokenDrag?.pointerId === event.pointerId) {
       const destination = tokenDrag.current;
-      if (!pointsEqual(tokenDrag.origin, destination)) {
+      if (!tokenDrag.moved) {
+        openEditDialog(tokenDrag.tokenId);
+      } else if (!pointsEqual(tokenDrag.origin, destination)) {
         const nextTokens = tokens.map((token) => token.id === tokenDrag.tokenId ? { ...token, ...destination } : token);
         commitScene(nextTokens, walls);
       }
@@ -727,7 +713,7 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
       moveSelectedToken(...movement[event.key]);
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      beginTokenDialog('edit');
+      openEditDialog(selectedTokenId);
     } else if (event.key === 'Delete' || event.key === 'Backspace') {
       event.preventDefault();
       commitScene(tokens.filter((token) => token.id !== selectedTokenId), walls);
@@ -752,23 +738,45 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
     context.clearRect(0, 0, canvasSize.width, canvasSize.height);
 
     const styles = getComputedStyle(canvas);
-    context.fillStyle = styles.getPropertyValue('--color-paper').trim() || '#ffffff';
+    context.fillStyle = gridMapBackgroundColor || styles.getPropertyValue('--color-paper').trim() || '#ffffff';
     context.fillRect(0, 0, canvasSize.width, canvasSize.height);
 
     context.save();
     context.translate(panOffset.x, panOffset.y);
     context.scale(mapZoom, mapZoom);
 
+    const backgroundImage = getTokenImage(gridMapBackgroundImage);
+    if (backgroundImage) {
+      const imageWidth = Math.max(1, gridMapBackgroundWidthCells) * gridMapGridSize;
+      context.globalAlpha = Math.min(1, Math.max(0, gridMapBackgroundOpacity));
+      context.drawImage(
+        backgroundImage,
+        gridMapBackgroundOffsetX * gridMapGridSize,
+        gridMapBackgroundOffsetY * gridMapGridSize,
+        imageWidth,
+        imageWidth * (backgroundImage.naturalHeight / backgroundImage.naturalWidth),
+      );
+      context.globalAlpha = 1;
+    }
+
     const worldLeft = Math.max(0, -panOffset.x / mapZoom);
     const worldTop = Math.max(0, -panOffset.y / mapZoom);
     const worldRight = (canvasSize.width - panOffset.x) / mapZoom;
     const worldBottom = (canvasSize.height - panOffset.y) / mapZoom;
-    if (gridMapGridType === 'hex') {
+    const gridAlpha = Math.min(1, Math.max(0, gridMapGridOpacity));
+    const gridLineWidth = Math.max(0.5, gridMapGridLineWidth) / mapZoom;
+    context.lineCap = gridMapGridStyle === 'dotted' ? 'round' : 'butt';
+    context.setLineDash(
+      gridMapGridStyle === 'dashed' ? [6 / mapZoom, 4 / mapZoom]
+        : gridMapGridStyle === 'dotted' ? [0.01, 4 / mapZoom]
+          : [],
+    );
+    if (gridMapShowGrid && gridMapGridType === 'hex') {
       const startRow = Math.max(0, Math.floor((worldTop - hexRadius * 2) / hexVerticalSpacing));
       const endRow = Math.ceil(worldBottom / hexVerticalSpacing) + 1;
-      context.lineWidth = 1 / mapZoom;
+      context.lineWidth = gridLineWidth;
       context.strokeStyle = gridMapGridColor;
-      context.globalAlpha = 0.58;
+      context.globalAlpha = 0.58 * gridAlpha;
       for (let row = startRow; row <= endRow; row += 1) {
         const rowOffset = row % 2 === 0 ? 0 : 0.5;
         const startColumn = Math.max(0, Math.floor(worldLeft / gridMapGridSize - rowOffset) - 1);
@@ -778,16 +786,16 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
           context.stroke();
         }
       }
-    } else {
+    } else if (gridMapShowGrid) {
       const startColumn = Math.max(0, Math.floor(worldLeft / gridMapGridSize));
       const startRow = Math.max(0, Math.floor(worldTop / gridMapGridSize));
       const endColumn = Math.ceil(worldRight / gridMapGridSize) + 1;
       const endRow = Math.ceil(worldBottom / gridMapGridSize) + 1;
 
-      context.lineWidth = 1 / mapZoom;
+      context.lineWidth = gridLineWidth;
       for (let column = startColumn; column <= endColumn; column += 1) {
         const x = column * gridMapGridSize;
-        context.globalAlpha = column % 5 === 0 ? 0.85 : 0.38;
+        context.globalAlpha = (gridMapMajorLineEvery > 0 && column % gridMapMajorLineEvery === 0 ? 0.85 : 0.38) * gridAlpha;
         context.strokeStyle = gridMapGridColor;
         context.beginPath();
         context.moveTo(x, worldTop);
@@ -796,7 +804,7 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
       }
       for (let row = startRow; row <= endRow; row += 1) {
         const y = row * gridMapGridSize;
-        context.globalAlpha = row % 5 === 0 ? 0.85 : 0.38;
+        context.globalAlpha = (gridMapMajorLineEvery > 0 && row % gridMapMajorLineEvery === 0 ? 0.85 : 0.38) * gridAlpha;
         context.strokeStyle = gridMapGridColor;
         context.beginPath();
         context.moveTo(worldLeft, y);
@@ -805,7 +813,7 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
       }
     }
     context.globalAlpha = 1;
-
+    context.setLineDash([]);
     context.lineCap = 'round';
     context.lineJoin = 'round';
     for (const wall of walls) {
@@ -837,122 +845,83 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
       context.restore();
     }
 
-    for (const token of tokens) {
-      const center = tokenDrag?.tokenId === token.id ? tokenDrag.previewCenter : getTokenCenter(token);
-      const centerX = center.x;
-      const centerY = center.y;
-      const radius = getTokenRadius(token.size, gridMapGridType, gridMapGridSize);
-      const isSelected = token.id === selectedTokenId;
-      const isHovered = token.id === hoveredTokenId;
+    const accentColor = styles.getPropertyValue('--color-accent').trim() || '#2563eb';
+    const tokenCenters = new Map(tokens.map((token) => [token.id, tokenDrag?.tokenId === token.id ? tokenDrag.previewCenter : getTokenCenter(token)]));
+    const drawOrder = tokenDrag ? [...tokens.filter((token) => token.id !== tokenDrag.tokenId), ...tokens.filter((token) => token.id === tokenDrag.tokenId)] : tokens;
 
-      context.save();
-      context.beginPath();
-      context.arc(centerX, centerY, radius, 0, Math.PI * 2);
-      context.fillStyle = token.color;
-      context.shadowColor = 'rgba(15, 23, 42, 0.35)';
-      context.shadowBlur = isSelected ? 7 : 4;
-      context.shadowOffsetY = 2;
-      context.fill();
-      context.shadowColor = 'transparent';
-      context.lineWidth = isSelected ? 3 : isHovered ? 2 : 1.5;
-      context.strokeStyle = isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.9)';
-      context.stroke();
-      if (isSelected) {
-        context.beginPath();
-        context.arc(centerX, centerY, radius + 3, 0, Math.PI * 2);
-        context.lineWidth = 2;
-        context.strokeStyle = '#2563eb';
-        context.stroke();
-      }
-      context.restore();
+    for (const token of drawOrder) {
+      drawTokenBody(context, {
+        center: tokenCenters.get(token.id) as PixelPoint,
+        radius: getTokenRadius(token.size, gridMapGridType, gridMapGridSize),
+        color: token.color,
+        image: getTokenImage(token.image),
+        selected: token.id === selectedTokenId,
+        hovered: token.id === hoveredTokenId,
+        accent: accentColor,
+      });
     }
 
+    // Bars, names and pills grow more slowly than the token when zooming in (square-root falloff).
+    const overlayScale = 1 / Math.sqrt(Math.max(1, mapZoom));
     const baseFontSize = Math.min(12, gridMapGridSize * 0.31);
     const mediumRadius = getTokenRadius('medium', gridMapGridType, gridMapGridSize);
-    const tokenLabelMetrics = new Map(tokens.map((token) => {
+    const placedCaptions: Array<{ x: number; y: number; width: number; height: number }> = [];
+    const captions: Array<{ layout: CaptionLayout; x: number; y: number }> = [];
+
+    for (const token of drawOrder) {
+      const center = tokenCenters.get(token.id) as PixelPoint;
       const radius = getTokenRadius(token.size, gridMapGridType, gridMapGridSize);
       const fontSize = Math.min(18, baseFontSize * Math.max(1, Math.sqrt(radius / mediumRadius)));
-      return [token.id, { radius, fontSize }];
-    }));
-    const innerFontSizes = new Map(tokens.map((token) => [
-      token.id,
-      getInnerTokenFontSize(
-        context,
-        token.name,
-        tokenLabelMetrics.get(token.id)?.fontSize || baseFontSize,
-        (tokenLabelMetrics.get(token.id)?.radius || mediumRadius) * 1.55,
-      ),
-    ]));
-    const labelTokens = [...tokens].sort((first, second) => second.name.length - first.name.length);
-    const badgeLayouts = new Map<string, { lines: string[]; x: number; y: number; width: number; height: number; fontSize: number; lineHeight: number }>();
-    const placedBadges: Array<{ x: number; y: number; width: number; height: number }> = [];
+      const showName = token.showName !== false;
+      const innerFontSize = showName && !token.image ? getInnerTokenFontSize(context, token.name, fontSize, radius * 1.55) : null;
 
-    for (const token of labelTokens) {
-      if (innerFontSizes.get(token.id) !== null) continue;
-
-      const center = tokenDrag?.tokenId === token.id ? tokenDrag.previewCenter : getTokenCenter(token);
-      const metrics = tokenLabelMetrics.get(token.id);
-      const fontSize = metrics?.fontSize || baseFontSize;
-      const lineHeight = fontSize * 1.18;
-      const horizontalPadding = Math.max(5, fontSize * 0.55);
-      const verticalPadding = Math.max(4, fontSize * 0.42);
-      const maxBadgeTextWidth = Math.max(gridMapGridSize * 2.75, (metrics?.radius || mediumRadius) * 1.55);
-      context.font = `600 ${fontSize}px sans-serif`;
-      const lines = wrapTokenName(context, token.name, maxBadgeTextWidth);
-      const badgeWidth = Math.max(...lines.map((line) => context.measureText(line).width)) + horizontalPadding * 2;
-      const badgeHeight = lines.length * lineHeight + verticalPadding * 2;
-      const badgeX = center.x - badgeWidth / 2;
-      let badgeY = center.y - badgeHeight / 2;
-
-      while (placedBadges.some((badge) => (
-        badgeX < badge.x + badge.width + 2
-        && badgeX + badgeWidth + 2 > badge.x
-        && badgeY < badge.y + badge.height + 2
-        && badgeY + badgeHeight + 2 > badge.y
-      ))) {
-        badgeY += badgeHeight + 2;
+      if (innerFontSize !== null) {
+        context.save();
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.font = `600 ${innerFontSize}px sans-serif`;
+        context.fillStyle = readableTextColor(token.color);
+        context.fillText(token.name, center.x, center.y);
+        context.restore();
       }
-
-      badgeLayouts.set(token.id, { lines, x: badgeX, y: badgeY, width: badgeWidth, height: badgeHeight, fontSize, lineHeight });
-      placedBadges.push({ x: badgeX, y: badgeY, width: badgeWidth, height: badgeHeight });
-    }
-
-    for (const token of labelTokens) {
-      const center = tokenDrag?.tokenId === token.id ? tokenDrag.previewCenter : getTokenCenter(token);
-      const centerX = center.x;
-      const centerY = center.y;
 
       context.save();
-      context.textAlign = 'center';
-      context.textBaseline = 'middle';
-      const innerFontSize = innerFontSizes.get(token.id);
+      context.translate(center.x, center.y);
+      context.scale(overlayScale, overlayScale);
+      drawTokenBars(context, token, { x: 0, y: 0 }, radius / overlayScale);
+      context.restore();
 
-      if (innerFontSize === null) {
-        const layout = badgeLayouts.get(token.id);
-        if (!layout) continue;
-        context.font = `600 ${layout.fontSize}px sans-serif`;
+      const layout = layoutTokenCaption(context, {
+        token,
+        showName: showName && innerFontSize === null,
+        radius: radius / overlayScale,
+        nameFontSize: fontSize,
+        gridSize: gridMapGridSize / overlayScale,
+      });
+      if (!layout) continue;
 
-        context.shadowColor = 'rgba(15, 23, 42, 0.28)';
-        context.shadowBlur = 3;
-        context.shadowOffsetY = 1;
-        context.fillStyle = 'rgba(15, 23, 42, 0.9)';
-        context.beginPath();
-        context.roundRect(layout.x, layout.y, layout.width, layout.height, Math.min(7, layout.height / 3));
-        context.fill();
-        context.shadowColor = 'transparent';
-        context.lineWidth = 1;
-        context.strokeStyle = 'rgba(255, 255, 255, 0.78)';
-        context.stroke();
-        context.fillStyle = '#ffffff';
-        const firstLineY = layout.y + layout.height / 2 - ((layout.lines.length - 1) * layout.lineHeight) / 2;
-        layout.lines.forEach((line, index) => {
-          context.fillText(line, centerX, firstLineY + index * layout.lineHeight);
-        });
-      } else {
-        context.font = `600 ${innerFontSize ?? baseFontSize}px sans-serif`;
-        context.fillStyle = '#ffffff';
-        context.fillText(token.name, centerX, centerY);
+      const width = layout.width * overlayScale;
+      const height = layout.height * overlayScale;
+      const gap = 2 * overlayScale;
+      const x = center.x - width / 2;
+      let y = center.y + radius + 4 * overlayScale;
+      while (placedCaptions.some((caption) => (
+        x < caption.x + caption.width + gap
+        && x + width + gap > caption.x
+        && y < caption.y + caption.height + gap
+        && y + height + gap > caption.y
+      ))) {
+        y += height + gap;
       }
+      placedCaptions.push({ x, y, width, height });
+      captions.push({ layout, x, y });
+    }
+
+    for (const caption of captions) {
+      context.save();
+      context.translate(caption.x, caption.y);
+      context.scale(overlayScale, overlayScale);
+      drawTokenCaption(context, caption.layout, 0, 0);
       context.restore();
     }
 
@@ -1001,7 +970,7 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
       context.restore();
     }
     context.restore();
-  }, [canvasSize.height, canvasSize.width, getCellCenter, getTokenCenter, gridMapGridColor, gridMapGridSize, gridMapGridType, gridMapWallColor, gridMapWallWidth, hexRadius, hexVerticalSpacing, hoveredTokenId, mapZoom, measurement, measurementDistanceLabel, panOffset.x, panOffset.y, selectedTokenId, sheetScale, tokenDrag, tokens, wallDraft, walls]);
+  }, [canvasSize.height, canvasSize.width, getCellCenter, getTokenCenter, getTokenImage, gridMapBackgroundColor, gridMapBackgroundImage, gridMapBackgroundOffsetX, gridMapBackgroundOffsetY, gridMapBackgroundOpacity, gridMapBackgroundWidthCells, gridMapGridColor, gridMapGridLineWidth, gridMapGridOpacity, gridMapGridSize, gridMapGridStyle, gridMapGridType, gridMapMajorLineEvery, gridMapShowGrid, gridMapWallColor, gridMapWallWidth, hexRadius, hexVerticalSpacing, hoveredTokenId, imageVersion, mapZoom, measurement, measurementDistanceLabel, panOffset.x, panOffset.y, selectedTokenId, sheetScale, tokenDrag, tokens, wallDraft, walls]);
 
   useEffect(() => {
     drawCanvas();
@@ -1032,7 +1001,7 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
             </button>
           </Tooltip>
           <Tooltip content="Add token">
-            <button type="button" aria-label="Add token" onClick={() => beginTokenDialog('add')} onPointerDown={(event) => event.stopPropagation()} className={toolButtonClass(false)}>
+            <button type="button" aria-label="Add token" onClick={() => setTokenDialog({ mode: 'add' })} onPointerDown={(event) => event.stopPropagation()} className={toolButtonClass(false)}>
               <PlusIcon className="w-4 h-4" />
             </button>
           </Tooltip>
@@ -1052,7 +1021,7 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
             </button>
           </Tooltip>
           <Tooltip content="Edit selected token">
-            <button type="button" aria-label="Edit selected token" disabled={!selectedTokenId} onClick={() => beginTokenDialog('edit')} onPointerDown={(event) => event.stopPropagation()} className={toolButtonClass(false, !selectedTokenId)}>
+            <button type="button" aria-label="Edit selected token" disabled={!selectedTokenId} onClick={() => openEditDialog(selectedTokenId)} onPointerDown={(event) => event.stopPropagation()} className={toolButtonClass(false, !selectedTokenId)}>
               <PencilIcon className="w-4 h-4" />
             </button>
           </Tooltip>
@@ -1081,17 +1050,6 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
           onPointerCancel={cancelPointerGesture}
           onPointerLeave={() => !tokenDrag && !wallDraft && setHoveredTokenId(null)}
           onContextMenu={(event) => event.preventDefault()}
-          onDoubleClick={(event) => {
-            if (!canInteract || tool !== 'select') return;
-            const token = findTokenAtPoint(screenToWorld(getCanvasPoint(event)));
-            if (token) {
-              setSelectedTokenId(token.id);
-              setTokenName(token.name);
-              setTokenColor(token.color);
-              setTokenSize(token.size || 'medium');
-              setTokenDialog('edit');
-            }
-          }}
           onKeyDown={handleCanvasKeyDown}
           className={`block touch-none outline-none focus-visible:ring-2 focus-visible:ring-theme-accent focus-visible:ring-inset ${
             !canInteract ? 'cursor-default' : tool === 'pan' || panDrag ? 'cursor-grab active:cursor-grabbing' : tool === 'select' ? hoveredTokenId ? 'cursor-grab active:cursor-grabbing' : 'cursor-default' : 'cursor-crosshair'
@@ -1118,54 +1076,17 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
         )}
 
         {tokenDialog && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 p-3" onPointerDown={(event) => event.stopPropagation()}>
-            <form onSubmit={submitTokenDialog} className="w-full max-w-56 space-y-3 rounded-theme border border-theme-border bg-theme-paper p-3 shadow-theme">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="font-heading text-sm font-bold text-theme-ink">{tokenDialog === 'add' ? 'Add token' : 'Edit token'}</h3>
-                <button type="button" aria-label="Close token editor" onClick={() => setTokenDialog(null)} className="w-7 h-7 flex items-center justify-center rounded-button text-theme-muted hover:bg-theme-background hover:text-theme-ink">
-                  <XIcon className="w-4 h-4" />
-                </button>
-              </div>
-              <div>
-                <label htmlFor={`grid-map-token-name-${widget.id}`} className="mb-1 block text-xs font-medium text-theme-ink">Name</label>
-                <input
-                  id={`grid-map-token-name-${widget.id}`}
-                  autoFocus
-                  required
-                  maxLength={40}
-                  value={tokenName}
-                  onChange={(event) => setTokenName(event.target.value)}
-                  className="w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1.5 text-sm text-theme-ink focus:outline-none focus:border-theme-accent"
-                />
-              </div>
-              <div>
-                <label htmlFor={`grid-map-token-color-dialog-${widget.id}`} className="mb-1 block text-xs font-medium text-theme-ink">Color</label>
-                <input id={`grid-map-token-color-dialog-${widget.id}`} type="color" value={tokenColor} onChange={(event) => setTokenColor(event.target.value)} className="h-9 w-full cursor-pointer rounded-button border border-theme-border" />
-              </div>
-              <div>
-                <label htmlFor={`grid-map-token-size-${widget.id}`} className="mb-1 block text-xs font-medium text-theme-ink">Size</label>
-                <select
-                  id={`grid-map-token-size-${widget.id}`}
-                  value={tokenSize}
-                  onChange={(event) => setTokenSize(event.target.value as GridMapTokenSize)}
-                  className="w-full rounded-button border border-theme-border bg-theme-paper px-2 py-1.5 text-sm text-theme-ink focus:border-theme-accent focus:outline-none"
-                >
-                  {TOKEN_SIZES.map((size) => {
-                    const cells = (gridMapGridType === 'hex' ? HEX_TOKEN_CELLS : SQUARE_TOKEN_CELLS)[size];
-                    const unit = gridMapGridType === 'hex' ? (cells <= 1 ? 'hex' : 'hexes') : (cells <= 1 ? 'square' : 'squares');
-                    return <option key={size} value={size}>{TOKEN_SIZE_NAMES[size]} - {cells} {unit}</option>;
-                  })}
-                </select>
-              </div>
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setTokenDialog(null)} className="px-3 py-1.5 text-xs rounded-button border border-theme-border text-theme-ink hover:bg-theme-background">Cancel</button>
-                <button type="submit" className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-button bg-theme-accent text-theme-paper hover:opacity-90">
-                  <CheckIcon className="w-3.5 h-3.5" />
-                  {tokenDialog === 'add' ? 'Add' : 'Save'}
-                </button>
-              </div>
-            </form>
-          </div>
+          <GridMapTokenDialog
+            key={tokenDialog.mode === 'edit' ? tokenDialog.tokenId : 'add'}
+            mode={tokenDialog.mode}
+            token={tokenDialog.mode === 'edit'
+              ? tokens.find((token) => token.id === tokenDialog.tokenId) || { name: '', color: gridMapDefaultTokenColor }
+              : { name: '', color: gridMapDefaultTokenColor, size: 'medium' }}
+            gridType={gridMapGridType}
+            onSave={saveTokenDialog}
+            onDelete={tokenDialog.mode === 'edit' ? deleteDialogToken : undefined}
+            onCancel={() => setTokenDialog(null)}
+          />
         )}
 
         {showClearConfirm && (

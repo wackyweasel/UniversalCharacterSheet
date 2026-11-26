@@ -156,7 +156,10 @@ function getSearchSegments(widget: Widget): SheetSearchSegment[] {
       });
       break;
     case 'GRID_MAP':
-      data.gridMapTokens?.forEach((token) => add('Map token', token.name));
+      data.gridMapTokens?.forEach((token) => {
+        add('Map token', token.name);
+        token.attributes?.forEach((attribute) => add('Token attribute', attribute.name));
+      });
       break;
     case 'STEP_DICE':
       data.stepDiceItems?.forEach((item) => add('Die track', item.name));

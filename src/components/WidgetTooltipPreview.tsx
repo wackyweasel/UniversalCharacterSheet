@@ -464,8 +464,14 @@ const PREVIEW_WIDGETS: Record<WidgetType, Widget> = {
       gridMapWallWidth: 4,
       gridMapDefaultTokenColor: '#2563eb',
       gridMapTokens: [
-        { id: 'token-1', name: 'Hero', column: 2, row: 2, color: '#2563eb' },
-        { id: 'token-2', name: 'Guard', column: 5, row: 3, color: '#dc2626' },
+        {
+          id: 'token-1', name: 'Hero', column: 2, row: 2, color: '#2563eb',
+          attributes: [{ id: 'hp-1', kind: 'bar', name: 'HP', value: 7, max: 10, color: '#ef4444', showOnToken: true }],
+        },
+        {
+          id: 'token-2', name: 'Guard', column: 5, row: 3, color: '#dc2626',
+          attributes: [{ id: 'cond-1', kind: 'condition', name: 'Poisoned', color: '#16a34a', showOnToken: true }],
+        },
       ],
       gridMapWalls: [
         { id: 'wall-1', start: { column: 1, row: 1 }, end: { column: 6, row: 1 } },

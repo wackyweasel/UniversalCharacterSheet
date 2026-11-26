@@ -49,11 +49,30 @@ export interface GridMapPoint {
 
 export type GridMapTokenSize = 'tiny' | 'medium' | 'large' | 'huge' | 'gargantuan';
 
+export type GridMapAttributeKind = 'bar' | 'number' | 'text' | 'condition';
+
+export interface GridMapTokenAttribute {
+  id: string;
+  kind: GridMapAttributeKind;
+  name: string;
+  /** Current value for bars and numbers, free text for text attributes. Unused by conditions. */
+  value?: number | string;
+  /** Maximum for bars. */
+  max?: number;
+  color?: string;
+  showOnToken: boolean;
+}
+
 export interface GridMapToken extends GridMapPoint {
   id: string;
   name: string;
   color: string;
   size?: GridMapTokenSize;
+  /** Data URL drawn inside the token instead of the plain color fill. */
+  image?: string;
+  /** Defaults to true. */
+  showName?: boolean;
+  attributes?: GridMapTokenAttribute[];
 }
 
 export interface GridMapWall {
@@ -690,6 +709,19 @@ export interface WidgetData {
   gridMapDefaultTokenColor?: string;
   gridMapCellDistance?: number;
   gridMapDistanceUnit?: string;
+  gridMapShowGrid?: boolean;
+  gridMapGridOpacity?: number;
+  gridMapGridLineWidth?: number;
+  gridMapGridStyle?: 'solid' | 'dashed' | 'dotted';
+  /** Square grids only: every Nth line is drawn stronger. 0 disables it. */
+  gridMapMajorLineEvery?: number;
+  gridMapBackgroundColor?: string;
+  gridMapBackgroundImage?: string;
+  /** Width of the background image in grid cells; height follows the aspect ratio. */
+  gridMapBackgroundWidthCells?: number;
+  gridMapBackgroundOffsetX?: number;
+  gridMapBackgroundOffsetY?: number;
+  gridMapBackgroundOpacity?: number;
   // Roll Table
   rollTableItems?: RollTableItem[];
   showRollTableItems?: boolean;
