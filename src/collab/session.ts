@@ -2,6 +2,7 @@ import type { Character } from '../types';
 import {
   MAX_GUESTS,
   PROTOCOL_VERSION,
+  SessionError,
   cleanName,
   parseGuestMessage,
   parseHostMessage,
@@ -171,7 +172,7 @@ export class GuestSession {
       let welcomed = false;
       const timeout = setTimeout(() => {
         if (welcomed) return;
-        reject(new Error('The host did not answer. Check the link and try again.'));
+        reject(new SessionError('The host did not answer. Check the link and try again.', 'host_timeout'));
         this.fail(connection);
       }, JOIN_TIMEOUT_MS);
 
@@ -187,7 +188,7 @@ export class GuestSession {
             break;
           case 'reject':
             clearTimeout(timeout);
-            reject(new Error(message.reason));
+            reject(new SessionError(message.reason, 'rejected'));
             this.fail(connection);
             break;
           case 'patch':
@@ -208,7 +209,7 @@ export class GuestSession {
       connection.onClose(() => {
         if (!welcomed) {
           clearTimeout(timeout);
-          reject(new Error('Could not connect to the host.'));
+          reject(new SessionError('Could not connect to the host.', 'closed'));
         }
         this.finish('lost', 'The connection to the host was lost. The host may have ended the session.');
       });

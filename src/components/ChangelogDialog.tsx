@@ -37,6 +37,12 @@ export function useChangelogOnLoad(ready: boolean): [{ lastSeenVersion: string |
 
 const CHANGELOG_ENTRIES = [
   {
+    version: '1.19.0',
+    changes: [
+      'New: Live sessions. Open the menu and choose "Live Session" to share a link to your current character. Anyone with the link can edit the sheet with you in real time, with no account or setup. Guests work on a temporary copy and can save it to their own workspace. Only the host\'s workspace is saved, and the session ends when the host closes the tab.',
+    ],
+  },
+  {
     version: '1.18.3',
     changes: [
       'Table column and row formulas can now use the labels of other columns or rows. Each row uses its own values. Ex: a column formula "@bonus + @base" adds the "base" cell of the same row.',

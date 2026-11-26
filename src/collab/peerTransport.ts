@@ -1,5 +1,5 @@
 import type { DataConnection, Peer, PeerError } from 'peerjs';
-import type { Connection, HostEndpoint, Transport } from './protocol';
+import { SessionError, type Connection, type HostEndpoint, type Transport } from './protocol';
 
 const CONNECT_TIMEOUT_MS = 20_000;
 const MAX_RECONNECT_ATTEMPTS = 5;
@@ -20,19 +20,19 @@ function describeError(error: unknown): Error {
   const type = (error as Partial<PeerError<string>> | undefined)?.type;
   switch (type) {
     case 'peer-unavailable':
-      return new Error('No session was found for this link. The host may have ended it.');
+      return new SessionError('No session was found for this link. The host may have ended it.', 'host_not_found');
     case 'browser-incompatible':
-      return new Error('This browser does not support peer-to-peer connections.');
+      return new SessionError('This browser does not support peer-to-peer connections.', 'unsupported_browser');
     case 'webrtc':
     case 'negotiation':
-      return new Error('A direct connection could not be established. A firewall or network may be blocking it.');
+      return new SessionError('A direct connection could not be established. A firewall or network may be blocking it.', 'connection_blocked');
     case 'network':
     case 'server-error':
     case 'socket-error':
     case 'socket-closed':
-      return new Error('Could not reach the connection service. Check your internet connection.');
+      return new SessionError('Could not reach the connection service. Check your internet connection.', 'service_unreachable');
     default:
-      return error instanceof Error ? error : new Error('The connection failed.');
+      return error instanceof Error ? error : new SessionError('The connection failed.', 'unknown');
   }
 }
 
@@ -42,7 +42,7 @@ async function openPeer(id?: string): Promise<Peer> {
     const peer = id ? new PeerClass(id) : new PeerClass();
     const timeout = window.setTimeout(() => {
       peer.destroy();
-      reject(new Error('Could not reach the connection service. Check your internet connection.'));
+      reject(new SessionError('Could not reach the connection service. Check your internet connection.', 'service_unreachable'));
     }, CONNECT_TIMEOUT_MS);
     peer.once('open', () => {
       window.clearTimeout(timeout);
@@ -108,7 +108,7 @@ async function hostEndpoint(): Promise<HostEndpoint> {
       if ((error as Partial<PeerError<string>>).type !== 'unavailable-id' || attempt === 2) throw describeError(error);
     }
   }
-  if (!peer) throw new Error('Could not start the session.');
+  if (!peer) throw new SessionError('Could not start the session.', 'unknown');
 
   const openedPeer = peer;
   let lostListener: ((reason: string) => void) | null = null;
@@ -169,7 +169,7 @@ async function joinHost(hostId: string): Promise<Connection> {
       reject(describeError(error));
     };
     const timeout = window.setTimeout(
-      () => fail(new Error('The host did not answer. Check the link and try again.')),
+      () => fail(new SessionError('The host did not answer. Check the link and try again.', 'host_timeout')),
       CONNECT_TIMEOUT_MS,
     );
     peer.on('error', fail);

@@ -2,12 +2,32 @@ import { create } from 'zustand';
 import type { Character } from '../types';
 import { GuestSession, HostSession, type SessionStatus } from '../collab/session';
 import { isSessionId, peerTransport } from '../collab/peerTransport';
-import { cleanName, type Participant } from '../collab/protocol';
+import { cleanName, SessionError, type Participant } from '../collab/protocol';
 import type { CharacterPort } from '../collab/sync';
 import { useStore } from './useStore';
+import { useTelemetryStore } from './useTelemetryStore';
 
 const NAME_STORAGE_KEY = 'ucs:sessionName';
 const JOIN_HASH_PREFIX = '#join=';
+
+/** Only counts and reasons are reported; never names, links, session ids or character content. */
+function track(eventName: string, metadata?: Record<string, string | number | boolean>): void {
+  useTelemetryStore.getState().recordEvent({ eventName, category: 'app', source: 'live_session', metadata });
+}
+
+function errorKind(error: unknown): string {
+  return error instanceof SessionError ? error.kind : 'unknown';
+}
+
+function secondsSince(start: number): number {
+  return Math.round((Date.now() - start) / 1000);
+}
+
+function endGuestTracking(reason: 'host_ended' | 'connection_lost' | 'left'): void {
+  if (guestActiveAt === null) return;
+  track('live_session_ended', { role: 'guest', reason, duration_s: secondsSince(guestActiveAt) });
+  guestActiveAt = null;
+}
 
 export type SessionRole = 'none' | 'host' | 'guest';
 type SessionPhase = 'idle' | 'starting' | 'connecting' | SessionStatus;
@@ -40,6 +60,9 @@ let hostSession: HostSession | null = null;
 let guestSession: GuestSession | null = null;
 let guestCharacterId: string | null = null;
 let guestHostId: string | null = null;
+let hostStartedAt = 0;
+let hostPeakGuests = 0;
+let guestActiveAt: number | null = null;
 let pageHideInstalled = false;
 
 function readStoredName(): string {
@@ -135,12 +158,20 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       cleanName(state.displayName, 'Host'),
       {
         onParticipants: (participants) => {
-          if (hostSession === session) set({ participants });
+          if (hostSession !== session) return;
+          hostPeakGuests = Math.max(hostPeakGuests, participants.length - 1);
+          set({ participants });
         },
         onStatus: (status, detail) => {
           if (hostSession !== session) return;
           if (status === 'ended') {
             hostSession = null;
+            track('live_session_ended', {
+              role: 'host',
+              reason: detail ? 'character_removed' : 'ended_by_host',
+              duration_s: secondsSince(hostStartedAt),
+              peak_guests: hostPeakGuests,
+            });
             set({ role: 'none', phase: 'idle', hostId: null, link: null, characterId: null, participants: [], detail: detail ?? null });
           } else if (status === 'error') {
             set({ detail: detail ?? null });
@@ -152,10 +183,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     try {
       const hostId = await session.start();
       if (hostSession !== session) return;
+      hostStartedAt = Date.now();
+      hostPeakGuests = 0;
+      track('live_session_started');
       set({ phase: 'active', hostId, link: buildJoinLink(hostId) });
     } catch (error) {
       if (hostSession === session) hostSession = null;
       session.stop();
+      track('live_session_failed', { stage: 'start', kind: errorKind(error) });
       set({
         role: 'none',
         phase: 'idle',
@@ -169,6 +204,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const previous = get();
     if (previous.role === 'host') hostSession?.stop();
     guestSession?.leave();
+    endGuestTracking('left');
 
     // Reconnecting to the same host keeps the local copy instead of opening a new one.
     const reuseId = guestHostId === hostId ? guestCharacterId : null;
@@ -190,6 +226,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       onStatus: (status, detail) => {
         if (guestSession !== session) return;
         if (status === 'connecting') return;
+        if (status === 'active' && guestActiveAt === null) {
+          guestActiveAt = Date.now();
+          track('live_session_joined', { participants: get().participants.length, reconnected: reuseId !== null });
+        } else if (status !== 'active') {
+          endGuestTracking(findCharacter(guestCharacterId) ? (status === 'ended' ? 'host_ended' : 'connection_lost') : 'left');
+        }
         // After the host ends the session or the connection drops, the copy stays on screen.
         const gone = !findCharacter(guestCharacterId);
         if (gone && status === 'ended') {
@@ -209,6 +251,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       if (guestSession !== session) return;
       guestSession = null;
       session.leave();
+      track('live_session_failed', { stage: 'join', kind: errorKind(error) });
       const hadCopy = findCharacter(guestCharacterId) !== undefined;
       if (!hadCopy) {
         guestCharacterId = null;
@@ -231,6 +274,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       hostSession = null;
     } else if (role === 'guest') {
       guestSession?.leave();
+      endGuestTracking('left');
       guestSession = null;
       guestCharacterId = null;
       guestHostId = null;
@@ -243,6 +287,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const character = findCharacter(get().characterId);
     if (!character || get().role !== 'guest') return false;
     useStore.getState().importCharacter(character, 'unknown');
+    track('live_session_copy_saved');
     return true;
   },
 }));

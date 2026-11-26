@@ -5,6 +5,23 @@ export const PROTOCOL_VERSION = 1;
 export const MAX_GUESTS = 8;
 export const MAX_NAME_LENGTH = 32;
 
+export type SessionErrorKind =
+  | 'host_not_found'
+  | 'unsupported_browser'
+  | 'connection_blocked'
+  | 'service_unreachable'
+  | 'host_timeout'
+  | 'rejected'
+  | 'closed'
+  | 'unknown';
+
+/** An error with a message for the user and a kind that is safe to report in telemetry. */
+export class SessionError extends Error {
+  constructor(message: string, readonly kind: SessionErrorKind) {
+    super(message);
+  }
+}
+
 export interface Participant {
   id: string;
   name: string;

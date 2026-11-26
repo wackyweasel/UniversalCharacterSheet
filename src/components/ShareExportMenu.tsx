@@ -359,6 +359,12 @@ export default function ShareExportMenu({
               data-tutorial="live-session-button"
               onClick={() => {
                 openSessionDialog();
+                recordTelemetryEvent({
+                  eventName: 'live_session_dialog_opened',
+                  category: 'app',
+                  source: 'sheet_menu',
+                  metadata: { role: sessionRole },
+                });
                 onOpenChange(false);
               }}
               className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
