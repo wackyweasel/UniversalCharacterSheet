@@ -479,6 +479,14 @@
       "description": "A shitly made mix of Fire Emblem Stats and DND. Anyone can do better.",
       "file": "presets/template_for_fe_dnd.json",
       "gameSystem": "Fire Emblem + DnD."
+    },
+    {
+      "id": "61",
+      "name": "Rootin Tootin",
+      "author": "@Onze",
+      "description": "Wild west",
+      "file": "presets/rootin_tootin.json",
+      "gameSystem": "Rootin Tootin"
     }
   ],
   "themes": [
