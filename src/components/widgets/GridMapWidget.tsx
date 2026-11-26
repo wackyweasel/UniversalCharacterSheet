@@ -39,8 +39,6 @@ interface TokenDrag {
   current: GridMapPoint;
   pointerOffset: { x: number; y: number };
   previewCenter: { x: number; y: number };
-  startCanvasPoint: { x: number; y: number };
-  moved: boolean;
 }
 
 interface WallDraft {
@@ -190,7 +188,8 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
 
   const getTokenImage = useCallback((source: string | undefined) => {
-    if (!source) return null;
+    // Only embedded images: a URL set by another participant or an imported file would leak the viewer's IP when loaded.
+    if (!source || !source.startsWith('data:image/')) return null;
     const cache = imageCacheRef.current;
     let image = cache.get(source);
     if (!image) {
@@ -527,8 +526,6 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
           current: { column: token.column, row: token.row },
           pointerOffset: { x: point.x - center.x, y: point.y - center.y },
           previewCenter: center,
-          startCanvasPoint: canvasPoint,
-          moved: false,
         });
       }
       return;
@@ -574,12 +571,7 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
         y: Math.max(firstCellCenter.y, point.y - tokenDrag.pointerOffset.y),
       };
       const draggedToken = tokens.find((token) => token.id === tokenDrag.tokenId);
-      setTokenDrag({
-        ...tokenDrag,
-        current: snapTokenAnchor(previewCenter, draggedToken?.size),
-        previewCenter,
-        moved: tokenDrag.moved || Math.hypot(canvasPoint.x - tokenDrag.startCanvasPoint.x, canvasPoint.y - tokenDrag.startCanvasPoint.y) > 4,
-      });
+      setTokenDrag({ ...tokenDrag, current: snapTokenAnchor(previewCenter, draggedToken?.size), previewCenter });
       return;
     }
 
@@ -605,9 +597,7 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
       setPanDrag(null);
     } else if (tokenDrag?.pointerId === event.pointerId) {
       const destination = tokenDrag.current;
-      if (!tokenDrag.moved) {
-        openEditDialog(tokenDrag.tokenId);
-      } else if (!pointsEqual(tokenDrag.origin, destination)) {
+      if (!pointsEqual(tokenDrag.origin, destination)) {
         const nextTokens = tokens.map((token) => token.id === tokenDrag.tokenId ? { ...token, ...destination } : token);
         commitScene(nextTokens, walls);
       }
@@ -1050,6 +1040,14 @@ export default function GridMapWidget({ widget, mode, interactive = true, sheetS
           onPointerCancel={cancelPointerGesture}
           onPointerLeave={() => !tokenDrag && !wallDraft && setHoveredTokenId(null)}
           onContextMenu={(event) => event.preventDefault()}
+          onDoubleClick={(event) => {
+            if (!canInteract || tool !== 'select') return;
+            const token = findTokenAtPoint(screenToWorld(getCanvasPoint(event)));
+            if (token) {
+              setSelectedTokenId(token.id);
+              openEditDialog(token.id);
+            }
+          }}
           onKeyDown={handleCanvasKeyDown}
           className={`block touch-none outline-none focus-visible:ring-2 focus-visible:ring-theme-accent focus-visible:ring-inset ${
             !canInteract ? 'cursor-default' : tool === 'pan' || panDrag ? 'cursor-grab active:cursor-grabbing' : tool === 'select' ? hoveredTokenId ? 'cursor-grab active:cursor-grabbing' : 'cursor-default' : 'cursor-crosshair'

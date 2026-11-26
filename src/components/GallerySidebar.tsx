@@ -9,6 +9,7 @@ import GalleryShareModal from './GalleryShareModal';
 import { TUTORIAL_STEPS, useTutorialStore } from '../store/useTutorialStore';
 import { ChevronDownIcon, DotsVerticalIcon, XIcon } from './icons';
 import { useTelemetryStore } from '../store/useTelemetryStore';
+import { stripWidgetImage } from '../utils/stripImages';
 import type { Character } from '../types';
 import type { CharacterPreset } from '../presets';
 
@@ -365,15 +366,7 @@ export default function GallerySidebar({ collapsed, onToggle, darkMode }: Galler
           ...preset.preset,
           sheets: preset.preset.sheets.map(sheet => ({
             ...sheet,
-            widgets: sheet.widgets.map(widget => {
-              if (widget.type === 'IMAGE') {
-                return { ...widget, data: { ...widget.data, imageUrl: undefined } };
-              }
-              if (widget.type === 'MAP_SKETCHER') {
-                return { ...widget, data: { ...widget.data, mapShapes: [] } };
-              }
-              return widget;
-            })
+            widgets: sheet.widgets.map(stripWidgetImage)
           }))
         };
         data = strippedPreset;

@@ -1,8 +1,8 @@
 import { Character, Widget } from '../types';
 
 /**
- * Creates a deep copy of a character with all IMAGE widget URLs removed.
- * This is used for telemetry to avoid sending user-uploaded images.
+ * Creates a copy of a character without user-uploaded images (IMAGE widgets, grid map backgrounds and token art).
+ * This is used for telemetry, exports and gallery submissions.
  */
 export function stripImages(character: Character): Character {
   return {
@@ -14,7 +14,19 @@ export function stripImages(character: Character): Character {
   };
 }
 
-function stripWidgetImage(widget: Widget): Widget {
+export function stripWidgetImage(widget: Widget): Widget {
+  if (widget.type === 'GRID_MAP') {
+    const { gridMapTokens } = widget.data;
+    return {
+      ...widget,
+      data: {
+        ...widget.data,
+        gridMapBackgroundImage: undefined,
+        ...(gridMapTokens ? { gridMapTokens: gridMapTokens.map((token) => ({ ...token, image: undefined })) } : {}),
+      },
+    };
+  }
+
   if (widget.type === 'IMAGE') {
     return {
       ...widget,

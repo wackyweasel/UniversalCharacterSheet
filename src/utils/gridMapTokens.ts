@@ -108,36 +108,78 @@ export function normalizeAttributes(attributes: GridMapTokenAttribute[]): GridMa
 
 const MAX_TOKEN_IMAGE_DIMENSION = 256;
 const MAX_BACKGROUND_IMAGE_DIMENSION = 1600;
+export const TOKEN_IMAGE_MAX_BYTES = 32 * 1024;
+export const BACKGROUND_IMAGE_MAX_BYTES = 350 * 1024;
 
-/** Downscales a picked image so token art stays small in the saved sheet. */
+const COMPRESSION_QUALITIES = [0.88, 0.7, 0.5];
+const COMPRESSION_SCALE_STEP = 0.8;
+const COMPRESSION_MAX_SCALE_STEPS = 6;
+
+export function dataUrlBytes(dataUrl: string): number {
+  const payload = dataUrl.length - dataUrl.indexOf(',') - 1;
+  return Math.round(payload * 0.75);
+}
+
+/**
+ * Encodes at the best quality that fits `maxBytes`, lowering quality first and then the resolution.
+ * If nothing fits, returns the smallest result instead of failing.
+ */
+export function compressToBudget(encode: (scale: number, quality: number) => string, maxBytes: number): string {
+  let smallest: string | null = null;
+  let scale = 1;
+  for (let step = 0; step < COMPRESSION_MAX_SCALE_STEPS; step += 1) {
+    for (const quality of COMPRESSION_QUALITIES) {
+      const result = encode(scale, quality);
+      if (dataUrlBytes(result) <= maxBytes) return result;
+      if (smallest === null || result.length < smallest.length) smallest = result;
+      // Formats without a quality setting (the PNG fallback) give the same result every time.
+      if (!result.startsWith('data:image/webp')) break;
+    }
+    scale *= COMPRESSION_SCALE_STEP;
+  }
+  return smallest as string;
+}
+
+/** Downscales and compresses a picked image so token art stays small in the saved sheet and in live sessions. */
 export function readTokenImage(file: File): Promise<string> {
-  return readScaledImage(file, MAX_TOKEN_IMAGE_DIMENSION);
+  return readScaledImage(file, MAX_TOKEN_IMAGE_DIMENSION, TOKEN_IMAGE_MAX_BYTES);
 }
 
-/** Downscales a picked map image so the background stays reasonable in the saved sheet. */
+/** Downscales and compresses a picked map image so the background stays reasonable in the saved sheet and in live sessions. */
 export function readBackgroundImage(file: File): Promise<string> {
-  return readScaledImage(file, MAX_BACKGROUND_IMAGE_DIMENSION);
+  return readScaledImage(file, MAX_BACKGROUND_IMAGE_DIMENSION, BACKGROUND_IMAGE_MAX_BYTES);
 }
 
-function readScaledImage(file: File, maxDimension: number): Promise<string> {
+function readScaledImage(file: File, maxDimension: number, maxBytes: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const image = new Image();
     image.onload = () => {
       URL.revokeObjectURL(url);
-      const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight, 1));
+      const baseScale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight, 1));
       const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
       const context = canvas.getContext('2d');
       if (!context) {
         reject(new Error('Could not get canvas context'));
         return;
       }
-      context.imageSmoothingQuality = 'high';
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      const webp = canvas.toDataURL('image/webp', 0.88);
-      resolve(webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/png'));
+      // Resizing a canvas resets its context, so the smoothing is set after each resize below.
+      let drawnScale = 0;
+      try {
+        resolve(compressToBudget((scale, quality) => {
+          if (scale !== drawnScale) {
+            canvas.width = Math.max(1, Math.round(image.naturalWidth * baseScale * scale));
+            canvas.height = Math.max(1, Math.round(image.naturalHeight * baseScale * scale));
+            context.imageSmoothingQuality = 'high';
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            drawnScale = scale;
+          }
+          const webp = canvas.toDataURL('image/webp', quality);
+          return webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/png');
+        }, maxBytes));
+      } catch (error) {
+        reject(error);
+      }
     };
     image.onerror = () => {
       URL.revokeObjectURL(url);
