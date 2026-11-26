@@ -205,6 +205,7 @@ export function usePanZoom({ minScale = 0.1, maxScale = 5, editingWidgetId, char
     const content = contentRef?.current;
     if (!content) return;
     content.style.transform = getCameraTransform(panRef.current, scaleRef.current);
+    content.style.setProperty('--camera-scale', String(scaleRef.current));
     const inverseTransform = getInverseCameraTransform(panRef.current, scaleRef.current);
     content.querySelectorAll<HTMLElement>(`:scope > [${CAMERA_INVERSE_LAYER_ATTRIBUTE}]`).forEach((layer) => {
       layer.style.transform = inverseTransform;

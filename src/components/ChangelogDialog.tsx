@@ -39,7 +39,7 @@ const CHANGELOG_ENTRIES = [
   {
     version: '1.19.0',
     changes: [
-      'New: Live sessions. Open the menu and choose "Live Session" to share a link to your current character. Anyone with the link can edit the sheet with you in real time, with no account or setup. Guests work on a temporary copy and can save it to their own workspace. Only the host\'s workspace is saved, and the session ends when the host closes the tab.',
+      'New: Live sessions. Open the menu and choose "Live Session" to share a link to your current character. Anyone with the link can edit the sheet with you in real time, with no account or setup. Guests work on a temporary copy and can save it to their own workspace. Only the host\'s workspace is saved, and the session ends when the host closes the tab. You can see everyone\'s pointer on the sheet, and a box in the bottom left lists who is connected. The timeline is shared during a session and shows who did what.',
       'Grid Map: click a token to open its details. Add health bars, numbers, text and conditions, choose which ones show on the token, and give it an optional image. The grid also gets line style, opacity and thickness options, a background color and an optional background image.',
     ],
   },

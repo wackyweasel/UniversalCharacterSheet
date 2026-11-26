@@ -34,7 +34,10 @@ function Toast({ event, onDone }: { event: TimelineEvent; onDone: (id: string) =
           : event.icon}
       </span>
       <div className="min-w-0">
-        <p className="font-bold text-sm font-heading break-words">{event.widgetLabel || event.widgetType}</p>
+        <p className="font-bold text-sm font-heading break-words">
+          {event.widgetLabel || event.widgetType}
+          {event.author && <span className="ml-1.5 text-xs font-normal font-body opacity-80">· {event.author}</span>}
+        </p>
         <p className="text-sm font-body leading-snug break-words whitespace-pre-line">{event.description}</p>
       </div>
     </div>

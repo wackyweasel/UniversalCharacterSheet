@@ -1,12 +1,16 @@
 import type { Character } from '../types';
 import {
   MAX_GUESTS,
+  PARTICIPANT_COLORS,
   PROTOCOL_VERSION,
   SessionError,
   cleanName,
   parseGuestMessage,
   parseHostMessage,
   type Connection,
+  type CursorUpdate,
+  type SharedTimelineEntry,
+  type TimelineEntry,
   type HostEndpoint,
   type HostMessage,
   type Participant,
@@ -20,6 +24,12 @@ export type SessionStatus = 'connecting' | 'active' | 'ended' | 'lost' | 'error'
 export interface SessionCallbacks {
   onParticipants(participants: Participant[]): void;
   onStatus(status: SessionStatus, detail?: string): void;
+  /** Another participant's pointer moved; the host's own id is `host`. */
+  onCursor?(id: string, at: CursorUpdate): void;
+  /** Someone else logged a timeline entry. */
+  onTimeline?(entry: SharedTimelineEntry): void;
+  /** Tells this side which participant id is its own. */
+  onIdentity?(id: string): void;
 }
 
 const JOIN_TIMEOUT_MS = 20_000;
@@ -28,6 +38,7 @@ const END_GRACE_MS = 150;
 interface Guest {
   id: string;
   name: string;
+  color: string;
   connection: Connection;
 }
 
@@ -82,9 +93,25 @@ export class HostSession {
 
   private participants(): Participant[] {
     return [
-      { id: 'host', name: this.hostName, isHost: true },
-      ...[...this.guests.values()].map((guest) => ({ id: guest.id, name: guest.name, isHost: false })),
+      { id: 'host', name: this.hostName, isHost: true, color: PARTICIPANT_COLORS[0] },
+      ...[...this.guests.values()].map((guest) => ({ id: guest.id, name: guest.name, isHost: false, color: guest.color })),
     ];
+  }
+
+  /** Shares a timeline entry the host logged. */
+  sendTimeline(entry: TimelineEntry): void {
+    if (this.stopped) return;
+    this.broadcast({ t: 'timeline', entry: { ...entry, author: this.hostName, authorColor: PARTICIPANT_COLORS[0] } });
+  }
+
+  /** Shares where the host's own pointer is. */
+  sendCursor(at: CursorUpdate): void {
+    if (!this.stopped) this.broadcast({ t: 'cursor', id: 'host', at });
+  }
+
+  private freeColor(): string {
+    const used = new Set([...this.guests.values()].map((guest) => guest.color));
+    return PARTICIPANT_COLORS.find((color, index) => index > 0 && !used.has(color)) ?? PARTICIPANT_COLORS[1];
   }
 
   private broadcast(message: HostMessage, exceptId?: string): void {
@@ -120,7 +147,7 @@ export class HostSession {
         this.sync.flush();
         const character = this.port.get();
         if (!character) return;
-        guest = { id: connection.id, name: message.name, connection };
+        guest = { id: connection.id, name: message.name, color: this.freeColor(), connection };
         this.guests.set(guest.id, guest);
         connection.send({ t: 'welcome', you: guest.id, character, peers: this.participants() });
         this.announcePeers();
@@ -131,6 +158,13 @@ export class HostSession {
         this.sync.applyRemote(message.patch);
         this.broadcast({ t: 'patch', patch: message.patch }, guest.id);
         connection.send({ t: 'ack', n: message.n });
+      } else if (message.t === 'cursor') {
+        this.broadcast({ t: 'cursor', id: guest.id, at: message.at }, guest.id);
+        this.callbacks.onCursor?.(guest.id, message.at);
+      } else if (message.t === 'timeline') {
+        const entry: SharedTimelineEntry = { ...message.entry, author: guest.name, authorColor: guest.color };
+        this.broadcast({ t: 'timeline', entry }, guest.id);
+        this.callbacks.onTimeline?.(entry);
       }
     });
 
@@ -183,7 +217,7 @@ export class GuestSession {
           case 'welcome':
             welcomed = true;
             clearTimeout(timeout);
-            this.welcome(message.character, message.peers);
+            this.welcome(message.character, message.peers, message.you);
             resolve();
             break;
           case 'reject':
@@ -199,6 +233,12 @@ export class GuestSession {
             break;
           case 'peers':
             this.callbacks.onParticipants(message.peers);
+            break;
+          case 'cursor':
+            this.callbacks.onCursor?.(message.id, message.at);
+            break;
+          case 'timeline':
+            this.callbacks.onTimeline?.(message.entry);
             break;
           case 'end':
             this.finish('ended', 'The host ended the session.');
@@ -226,7 +266,17 @@ export class GuestSession {
     this.connection = null;
   }
 
-  private welcome(character: Character, peers: Participant[]): void {
+  /** Shares a timeline entry this guest logged. */
+  sendTimeline(entry: TimelineEntry): void {
+    if (!this.finished && this.sync) this.connection?.send({ t: 'timeline', entry });
+  }
+
+  /** Shares where this guest's pointer is. */
+  sendCursor(at: CursorUpdate): void {
+    if (!this.finished && this.sync) this.connection?.send({ t: 'cursor', at });
+  }
+
+  private welcome(character: Character, peers: Participant[], you: string): void {
     this.sync?.stop();
     this.pending = [];
     this.port.open(character);
@@ -240,6 +290,7 @@ export class GuestSession {
       () => this.leaveAndReport('ended', 'You left the shared character.'),
     );
     this.sync.start();
+    this.callbacks.onIdentity?.(you);
     this.callbacks.onParticipants(peers);
     this.callbacks.onStatus('active');
   }

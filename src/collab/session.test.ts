@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Character } from '../types';
 import { GuestSession, HostSession, type SessionStatus } from './session';
-import type { Connection, HostEndpoint, Participant, Transport } from './protocol';
+import type { Connection, CursorUpdate, HostEndpoint, Participant, SharedTimelineEntry, Transport } from './protocol';
 import type { CharacterPort } from './sync';
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -98,12 +98,21 @@ async function settle() {
 }
 
 function callbacks() {
-  const log = { statuses: [] as SessionStatus[], participants: [] as Participant[] };
+  const log = {
+    statuses: [] as SessionStatus[],
+    participants: [] as Participant[],
+    cursors: [] as Array<[string, CursorUpdate]>,
+    timeline: [] as SharedTimelineEntry[],
+    selfId: null as string | null,
+  };
   return {
     log,
     handlers: {
       onStatus: (status: SessionStatus) => { log.statuses.push(status); },
       onParticipants: (participants: Participant[]) => { log.participants = participants; },
+      onCursor: (id: string, at: CursorUpdate) => { log.cursors.push([id, at]); },
+      onTimeline: (entry: SharedTimelineEntry) => { log.timeline.push(entry); },
+      onIdentity: (id: string) => { log.selfId = id; },
     },
   };
 }
@@ -233,6 +242,67 @@ describe('live sessions', () => {
 
     expect(hostCallbacks.log.statuses).toContain('ended');
     expect(guests[0].callbacks.log.statuses).toContain('ended');
+  });
+
+  it('gives every participant their own colour and tells guests who they are', async () => {
+    const { hostCallbacks, guests } = await startSession(2);
+
+    const colors = hostCallbacks.log.participants.map((entry) => entry.color);
+    expect(new Set(colors).size).toBe(3);
+    expect(guests[0].callbacks.log.selfId).toBe(hostCallbacks.log.participants[1].id);
+  });
+
+  it('shows a guest pointer to the host and the other guests but not back to the sender', async () => {
+    const { hostCallbacks, guests } = await startSession(2);
+    const senderId = guests[0].callbacks.log.selfId;
+    const at = { sheetId: 'sheet-1', x: 120, y: 40 };
+
+    guests[0].session.sendCursor(at);
+    await settle();
+
+    expect(hostCallbacks.log.cursors).toEqual([[senderId, at]]);
+    expect(guests[1].callbacks.log.cursors).toEqual([[senderId, at]]);
+    expect(guests[0].callbacks.log.cursors).toEqual([]);
+  });
+
+  it('shows the host pointer to every guest and clears it when it leaves the sheet', async () => {
+    const { host, guests } = await startSession(2);
+
+    host.sendCursor({ sheetId: 'sheet-1', x: 5, y: 6 });
+    host.sendCursor(null);
+    await settle();
+
+    for (const guest of guests) {
+      expect(guest.callbacks.log.cursors).toEqual([['host', { sheetId: 'sheet-1', x: 5, y: 6 }], ['host', null]]);
+    }
+  });
+
+  it('ignores a pointer position that is not a finite number', async () => {
+    const { hostCallbacks, guests } = await startSession(1);
+
+    guests[0].session.sendCursor({ sheetId: 'sheet-1', x: Number.NaN, y: 1 });
+    guests[0].session.sendCursor({ sheetId: 'sheet-1', x: 1e12, y: 1 });
+    await settle();
+
+    expect(hostCallbacks.log.cursors).toEqual([]);
+  });
+
+  it('credits a timeline entry to its author for the host and the other guests only', async () => {
+    const { host, hostCallbacks, guests } = await startSession(2);
+    const entry = { widgetLabel: 'HP', widgetType: 'NUMBER', description: 'HP: 10 → 8', icon: '🔢' };
+    const guestColor = hostCallbacks.log.participants[1].color;
+
+    guests[0].session.sendTimeline(entry);
+    host.sendTimeline(entry);
+    await settle();
+
+    expect(hostCallbacks.log.timeline).toEqual([{ ...entry, author: 'Guest 1', authorColor: guestColor }]);
+    expect(guests[1].callbacks.log.timeline).toHaveLength(2);
+    expect(guests[1].callbacks.log.timeline).toEqual(expect.arrayContaining([
+      { ...entry, author: 'Guest 1', authorColor: guestColor },
+      { ...entry, author: 'Host', authorColor: hostCallbacks.log.participants[0].color },
+    ]));
+    expect(guests[0].callbacks.log.timeline.map((shared) => shared.author)).toEqual(['Host']);
   });
 
   it('removes a guest from the list when they leave', async () => {

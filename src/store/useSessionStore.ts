@@ -2,9 +2,10 @@ import { create } from 'zustand';
 import type { Character } from '../types';
 import { GuestSession, HostSession, type SessionStatus } from '../collab/session';
 import { isSessionId, peerTransport } from '../collab/peerTransport';
-import { cleanName, SessionError, type Participant } from '../collab/protocol';
+import { cleanName, SessionError, type CursorPosition, type CursorUpdate, type Participant, type SharedTimelineEntry } from '../collab/protocol';
 import type { CharacterPort } from '../collab/sync';
 import { useStore } from './useStore';
+import { setLiveTimelineBridge, useTimelineStore } from './useTimelineStore';
 import { useTelemetryStore } from './useTelemetryStore';
 
 const NAME_STORAGE_KEY = 'ucs:sessionName';
@@ -31,6 +32,27 @@ function endGuestTracking(reason: 'host_ended' | 'connection_lost' | 'left'): vo
 
 export type SessionRole = 'none' | 'host' | 'guest';
 type SessionPhase = 'idle' | 'starting' | 'connecting' | SessionStatus;
+type Cursors = Record<string, CursorPosition>;
+
+function withCursor(cursors: Cursors, id: string, at: CursorUpdate): Cursors {
+  if (at === null) {
+    if (!(id in cursors)) return cursors;
+    const next = { ...cursors };
+    delete next[id];
+    return next;
+  }
+  return { ...cursors, [id]: at };
+}
+
+function addRemoteTimelineEntry(characterId: string, entry: SharedTimelineEntry): void {
+  useTimelineStore.getState().addEvent(characterId, entry, { remote: true });
+}
+
+function onlyParticipants(cursors: Cursors, participants: Participant[]): Cursors {
+  const ids = new Set(participants.map((participant) => participant.id));
+  const kept = Object.entries(cursors).filter(([id]) => ids.has(id));
+  return kept.length === Object.keys(cursors).length ? cursors : Object.fromEntries(kept);
+}
 
 interface SessionState {
   role: SessionRole;
@@ -38,6 +60,10 @@ interface SessionState {
   hostId: string | null;
   link: string | null;
   participants: Participant[];
+  /** This tab's own participant id. */
+  selfId: string | null;
+  /** Where the other participants' pointers are, by participant id. */
+  cursors: Cursors;
   characterId: string | null;
   /** Latest problem or ending reason to show the user. */
   detail: string | null;
@@ -54,6 +80,8 @@ interface SessionState {
   joinSession: (hostId: string) => Promise<void>;
   leaveSession: () => void;
   saveGuestCopy: () => boolean;
+  /** Shares this tab's pointer position with the other participants. */
+  sendCursor: (at: CursorUpdate) => void;
 }
 
 let hostSession: HostSession | null = null;
@@ -127,6 +155,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   hostId: null,
   link: null,
   participants: [],
+  selfId: null,
+  cursors: {},
   characterId: null,
   detail: null,
   displayName: readStoredName(),
@@ -151,7 +181,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (state.role !== 'none' || !character || useStore.getState().transientCharacterIds.includes(characterId)) return;
 
     installPageHide();
-    set({ role: 'host', phase: 'starting', characterId, detail: null, participants: [], hostId: null, link: null });
+    set({ role: 'host', phase: 'starting', characterId, detail: null, participants: [], selfId: 'host', cursors: {}, hostId: null, link: null });
     const session = new HostSession(
       peerTransport,
       createStorePort(() => characterId),
@@ -160,7 +190,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         onParticipants: (participants) => {
           if (hostSession !== session) return;
           hostPeakGuests = Math.max(hostPeakGuests, participants.length - 1);
-          set({ participants });
+          set({ participants, cursors: onlyParticipants(get().cursors, participants) });
+        },
+        onCursor: (id, at) => {
+          if (hostSession === session) set({ cursors: withCursor(get().cursors, id, at) });
+        },
+        onTimeline: (entry) => {
+          if (hostSession === session) addRemoteTimelineEntry(characterId, entry);
         },
         onStatus: (status, detail) => {
           if (hostSession !== session) return;
@@ -172,7 +208,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
               duration_s: secondsSince(hostStartedAt),
               peak_guests: hostPeakGuests,
             });
-            set({ role: 'none', phase: 'idle', hostId: null, link: null, characterId: null, participants: [], detail: detail ?? null });
+            set({ role: 'none', phase: 'idle', hostId: null, link: null, characterId: null, participants: [], cursors: {}, selfId: null, detail: detail ?? null });
           } else if (status === 'error') {
             set({ detail: detail ?? null });
           }
@@ -195,6 +231,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         role: 'none',
         phase: 'idle',
         characterId: null,
+        selfId: null,
         detail: error instanceof Error ? error.message : 'Could not start the session.',
       });
     }
@@ -210,7 +247,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const reuseId = guestHostId === hostId ? guestCharacterId : null;
     guestHostId = hostId;
     guestCharacterId = reuseId;
-    set({ role: 'guest', phase: 'connecting', hostId, link: null, characterId: reuseId, detail: null, participants: [], pendingJoinId: null });
+    set({ role: 'guest', phase: 'connecting', hostId, link: null, characterId: reuseId, detail: null, participants: [], selfId: null, cursors: {}, pendingJoinId: null });
 
     const port = {
       ...createStorePort(() => guestCharacterId),
@@ -221,7 +258,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     };
     const session = new GuestSession(peerTransport, port, get().displayName, {
       onParticipants: (participants) => {
-        if (guestSession === session) set({ participants });
+        if (guestSession === session) set({ participants, cursors: onlyParticipants(get().cursors, participants) });
+      },
+      onCursor: (id, at) => {
+        if (guestSession === session) set({ cursors: withCursor(get().cursors, id, at) });
+      },
+      onTimeline: (entry) => {
+        if (guestSession === session && guestCharacterId) addRemoteTimelineEntry(guestCharacterId, entry);
+      },
+      onIdentity: (id) => {
+        if (guestSession === session) set({ selfId: id });
       },
       onStatus: (status, detail) => {
         if (guestSession !== session) return;
@@ -238,10 +284,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           guestSession = null;
           guestCharacterId = null;
           guestHostId = null;
-          set({ role: 'none', phase: 'idle', hostId: null, characterId: null, participants: [], detail: null });
+          set({ role: 'none', phase: 'idle', hostId: null, characterId: null, participants: [], selfId: null, cursors: {}, detail: null });
           return;
         }
-        set({ phase: status, detail: detail ?? null });
+        set({ phase: status, detail: detail ?? null, ...(status === 'active' ? {} : { cursors: {} }) });
       },
     });
     guestSession = session;
@@ -280,7 +326,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       guestHostId = null;
       useStore.getState().cleanupTransientCharacters();
     }
-    set({ role: 'none', phase: 'idle', hostId: null, link: null, characterId: null, participants: [], detail: null, dialogOpen: false });
+    set({ role: 'none', phase: 'idle', hostId: null, link: null, characterId: null, participants: [], selfId: null, cursors: {}, detail: null, dialogOpen: false });
+  },
+
+  sendCursor: (at) => {
+    if (get().phase !== 'active') return;
+    if (get().role === 'host') hostSession?.sendCursor(at);
+    else guestSession?.sendCursor(at);
   },
 
   saveGuestCopy: () => {
@@ -291,3 +343,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     return true;
   },
 }));
+
+setLiveTimelineBridge({
+  authorFor: (characterId) => {
+    const { phase, characterId: sharedId, participants, selfId } = useSessionStore.getState();
+    if (phase !== 'active' || characterId !== sharedId) return null;
+    const self = participants.find((participant) => participant.id === selfId);
+    return self ? { author: self.name, authorColor: self.color } : null;
+  },
+  publish: (_characterId, entry) => {
+    if (useSessionStore.getState().role === 'host') hostSession?.sendTimeline(entry);
+    else guestSession?.sendTimeline(entry);
+  },
+});

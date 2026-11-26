@@ -14,6 +14,21 @@ export interface TimelineEvent {
   undoId?: string;
   /** Character event that logged this entry. */
   characterEventId?: string;
+  /** Who made the change, for entries logged during a live session. */
+  author?: string;
+  authorColor?: string;
+}
+
+/** Lets a live session name the author of local entries and share them with the others. */
+export interface LiveTimelineBridge {
+  authorFor(characterId: string): { author: string; authorColor: string } | null;
+  publish(characterId: string, entry: Pick<TimelineEvent, 'widgetLabel' | 'widgetType' | 'description' | 'icon'>): void;
+}
+
+let liveTimelineBridge: LiveTimelineBridge | null = null;
+
+export function setLiveTimelineBridge(bridge: LiveTimelineBridge | null): void {
+  liveTimelineBridge = bridge;
 }
 
 /** Per-character timeline data */
@@ -37,7 +52,7 @@ interface TimelineState {
   showEvents: boolean;
   showToasts: boolean;
   
-  addEvent: (characterId: string, event: Omit<TimelineEvent, 'id' | 'timestamp'>) => void;
+  addEvent: (characterId: string, event: Omit<TimelineEvent, 'id' | 'timestamp'>, options?: { remote?: boolean }) => void;
   removeEvent: (characterId: string, eventId: string) => void;
   removeEventsByUndoId: (characterId: string, undoId: string) => TimelineEvent[];
   clearEventsForDay: (characterId: string, dayKey: string) => void;
@@ -107,24 +122,37 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
   showEvents: persisted.showEvents,
   showToasts: persisted.showToasts,
   
-  addEvent: (characterId, event) => set((state) => {
-    const charTimeline = state.eventsByCharacter[characterId] ?? { events: [], nextId: 1 };
-    const newEvent: TimelineEvent = {
-      ...event,
-      undoId: event.undoId ?? getCoveringSnapshotId(characterId),
-      id: String(charTimeline.nextId),
-      timestamp: Date.now(),
-    };
-    return {
-      eventsByCharacter: {
-        ...state.eventsByCharacter,
-        [characterId]: {
-          events: [...charTimeline.events, newEvent].slice(-200),
-          nextId: charTimeline.nextId + 1,
+  addEvent: (characterId, event, options) => {
+    // Entries that arrive from other participants already carry their author and are not shared again.
+    const live = options?.remote ? null : liveTimelineBridge?.authorFor(characterId) ?? null;
+    set((state) => {
+      const charTimeline = state.eventsByCharacter[characterId] ?? { events: [], nextId: 1 };
+      const newEvent: TimelineEvent = {
+        ...event,
+        ...live,
+        undoId: options?.remote ? undefined : event.undoId ?? getCoveringSnapshotId(characterId),
+        id: String(charTimeline.nextId),
+        timestamp: Date.now(),
+      };
+      return {
+        eventsByCharacter: {
+          ...state.eventsByCharacter,
+          [characterId]: {
+            events: [...charTimeline.events, newEvent].slice(-200),
+            nextId: charTimeline.nextId + 1,
+          },
         },
-      },
-    };
-  }),
+      };
+    });
+    if (live) {
+      liveTimelineBridge?.publish(characterId, {
+        widgetLabel: event.widgetLabel,
+        widgetType: event.widgetType,
+        description: event.description,
+        icon: event.icon,
+      });
+    }
+  },
 
   removeEventsByUndoId: (characterId, undoId) => {
     const charTimeline = get().eventsByCharacter[characterId];

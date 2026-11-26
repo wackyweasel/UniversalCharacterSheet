@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useLayoutEffect, useMemo, useSyncExternalStore } from 'react';
+import { useState, useRef, useEffect, useCallback, useLayoutEffect, useMemo, useSyncExternalStore, type CSSProperties } from 'react';
 import { useStore } from '../store/useStore';
 import { useUndoStore } from '../store/useUndoStore';
 import { TEMPLATE_TUTORIAL_START_ID, THEME_TUTORIAL_START_ID, useTutorialStore, TUTORIAL_STEPS, getTutorialStepIndex } from '../store/useTutorialStore';
@@ -9,6 +9,8 @@ import type { PaperFormat } from '../store/usePrintStore';
 import { TUTORIAL_PRESET } from '../presets';
 import { usePanZoom, useTouchCamera, useAutoStack, useFitWidgets, useWorkspaceNavigation, usePointerReorder } from '../hooks';
 import { getCameraTransform } from '../hooks/usePanZoom';
+import { useLiveCursors } from '../hooks/useLiveCursors';
+import LiveCursors from './LiveCursors';
 import { getCachedGalleryTheme } from '../hooks/useGallery';
 
 const DARK_MODE_STORAGE_KEY = 'ucs:darkMode';
@@ -644,6 +646,14 @@ export default function Sheet() {
     sheetId: activeSheetId,
     onBackgroundClick: handleBackgroundInteraction,
     contentRef: printAreaRef,
+  });
+
+  useLiveCursors({
+    enabled: mode !== 'vertical' && mode !== 'print',
+    containerRef,
+    panRef,
+    scaleRef,
+    sheetId: activeSheetId,
   });
 
   const viewLockedRef = useRef(viewLocked);
@@ -1969,9 +1979,10 @@ export default function Sheet() {
           className={`absolute top-0 left-0 w-full h-full origin-top-left print-canvas-content ${isPanning ? 'camera-gesture-active' : ''} ${mode === 'print' ? 'pointer-events-auto' : ''}`}
           style={{ 
             transform: getCameraTransform(pan, scale),
+            '--camera-scale': scale,
             // Widgets render at probe sizes while auto stack measures them.
             opacity: isAutoStacking ? 0 : undefined,
-          }}
+          } as CSSProperties}
         >
           {/* Shadow Layer - rendered below all widgets (respect shadowsDisabled in print mode) */}
           {!(mode === 'print' && shadowsDisabled) && (
@@ -1994,7 +2005,9 @@ export default function Sheet() {
           ))}
 
           <CardDeckLayer pan={pan} scale={scale} zIndex={cardDeckLayerZIndex} />
-          
+
+          {mode !== 'print' && activeSheetId && <LiveCursors sheetId={activeSheetId} />}
+
           {/* Attachment buttons for the selected widget */}
           {mode !== 'print' && attachmentControlsVisible && (
             <AttachmentButtons 

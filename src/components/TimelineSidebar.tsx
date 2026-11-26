@@ -73,13 +73,25 @@ function EventItem({ event, onDelete, onShowSource }: EventItemProps) {
               </button>
             ) : title}
           </h4>
-          <time
-            dateTime={new Date(event.timestamp).toISOString()}
-            title={new Date(event.timestamp).toLocaleString()}
-            className="text-[11px] text-theme-muted font-body flex-shrink-0 tabular-nums"
-          >
-            {formatClockTime(event.timestamp)}
-          </time>
+          <div className="flex flex-shrink-0 items-center gap-1.5 text-[11px] text-theme-muted font-body">
+            {event.author && (
+              <span className="flex max-w-[110px] items-center gap-1" title={`By ${event.author}`}>
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: event.authorColor }}
+                  aria-hidden="true"
+                />
+                <span className="truncate">{event.author}</span>
+              </span>
+            )}
+            <time
+              dateTime={new Date(event.timestamp).toISOString()}
+              title={new Date(event.timestamp).toLocaleString()}
+              className="tabular-nums"
+            >
+              {formatClockTime(event.timestamp)}
+            </time>
+          </div>
         </div>
         <p className="mt-0.5 text-sm text-theme-ink font-body leading-snug break-words whitespace-pre-line">
           {event.description}
@@ -375,7 +387,7 @@ export default function TimelineSidebar() {
       if (!showFormulas && event.widgetType === 'FORMULA') return false;
       if (!showEvents && event.widgetType === EVENT_TIMELINE_TYPE) return false;
       if (!normalizedQuery) return true;
-      return `${event.widgetLabel} ${event.widgetType} ${event.description}`
+      return `${event.widgetLabel} ${event.widgetType} ${event.description} ${event.author ?? ''}`
         .toLocaleLowerCase()
         .includes(normalizedQuery);
     });

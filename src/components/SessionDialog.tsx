@@ -16,7 +16,7 @@ function ParticipantList() {
       <ul className="mt-1 space-y-1">
         {participants.map((participant) => (
           <li key={participant.id} className="flex items-center gap-2 font-body text-sm">
-            <span className="h-2 w-2 shrink-0 rounded-full bg-green-500" aria-hidden="true" />
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: participant.color }} aria-hidden="true" />
             <span className="truncate">{participant.name}</span>
             {participant.isHost && <span className="text-xs text-theme-muted">host</span>}
           </li>
@@ -241,25 +241,40 @@ export default function SessionDialog() {
 export function SessionIndicator() {
   const role = useSessionStore((state) => state.role);
   const phase = useSessionStore((state) => state.phase);
-  const count = useSessionStore((state) => state.participants.length);
+  const participants = useSessionStore((state) => state.participants);
+  const selfId = useSessionStore((state) => state.selfId);
   const dialogOpen = useSessionStore((state) => state.dialogOpen);
   const openDialog = useSessionStore((state) => state.openDialog);
   if (role === 'none' || dialogOpen) return null;
 
   const live = phase === 'active';
   const label = role === 'host'
-    ? live ? `Hosting · ${count}` : 'Starting…'
-    : live ? `Live · ${count}` : phase === 'connecting' ? 'Connecting…' : 'Session ended';
+    ? live ? 'Hosting' : 'Starting…'
+    : live ? 'Live' : phase === 'connecting' ? 'Connecting…' : 'Session ended';
 
   return (
     <button
       type="button"
       onClick={openDialog}
       aria-label="Live session"
-      className="fixed left-3 bottom-3 z-[60] flex items-center gap-2 px-3 py-1.5 rounded-button border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink font-body text-xs font-bold shadow-theme hover:bg-theme-accent hover:text-theme-paper transition-colors"
+      className="fixed left-3 bottom-3 z-[60] flex max-w-[220px] min-w-[140px] flex-col items-stretch gap-1.5 px-3 py-2 text-left rounded-theme border-[length:var(--border-width)] border-theme-border bg-theme-paper text-theme-ink font-body text-xs shadow-theme hover:bg-theme-accent/10 transition-colors"
     >
-      <span className={`h-2 w-2 rounded-full ${live ? 'bg-green-500' : 'bg-amber-500'}`} aria-hidden="true" />
-      {label}
+      <span className="flex items-center gap-2 font-bold">
+        <span className={`h-2 w-2 shrink-0 rounded-full ${live ? 'bg-green-500' : 'bg-amber-500'}`} aria-hidden="true" />
+        {label}{live ? ` · ${participants.length}` : ''}
+      </span>
+      {participants.length > 0 && (
+        <ul className="max-h-[40vh] space-y-1 overflow-y-auto">
+          {participants.map((participant) => (
+            <li key={participant.id} className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: participant.color }} aria-hidden="true" />
+              <span className="truncate">{participant.name}</span>
+              {participant.id === selfId && <span className="shrink-0 text-theme-muted">(you)</span>}
+              {participant.isHost && <span className="shrink-0 text-theme-muted">host</span>}
+            </li>
+          ))}
+        </ul>
+      )}
     </button>
   );
 }
