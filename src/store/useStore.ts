@@ -377,6 +377,9 @@ interface StoreState {
   
   // Replace character state (used by undo/redo)
   _replaceCharacter: (characterId: string, character: Character) => void;
+  // Live sessions: show a shared character as a temporary copy, and store changes made by other participants.
+  _openSharedCharacter: (character: Character, existingId?: string | null) => string;
+  _applyRemoteCharacter: (characterId: string, character: Character) => void;
   _replaceWorkspaceState: (state: {
     characters: Character[];
     activeCharacterId: string | null;
@@ -3439,6 +3442,50 @@ export const useStore = create<StoreState>((rawSet, get) => {
     _replaceCharacter: (characterId, character) => set((state) => ({
       characters: state.characters.map(c => c.id === characterId ? migrateCharacter(character) : c)
     })),
+
+    _openSharedCharacter: (character, existingId) => {
+      const state = get();
+      const reuse = existingId && state.transientCharacterIds.includes(existingId) ? existingId : null;
+      const id = reuse ?? uuidv4();
+      const shared = migrateCharacter({ ...character, id });
+      withEventsSuppressed(() => {
+        if (reuse) {
+          useUndoStore.getState().clearHistory(id);
+          rawSet((latest) => ({
+            characters: latest.characters.map((entry) => entry.id === id ? { ...shared, activeSheetId: shared.sheets.some((sheet) => sheet.id === entry.activeSheetId) ? entry.activeSheetId : shared.activeSheetId } : entry),
+          }));
+          return;
+        }
+        state.transientCharacterIds.forEach((transientId) => useTimelineStore.getState().clearEvents(transientId));
+        const transientIds = new Set(state.transientCharacterIds);
+        rawSet((latest) => ({
+          characters: [...latest.characters.filter((entry) => !transientIds.has(entry.id)), shared],
+          transientCharacterIds: [id],
+          activeCharacterId: id,
+          mode: latest.mode === 'vertical' ? 'vertical' as const : 'play' as const,
+          editingWidgetId: null,
+          selectedWidgetId: null,
+          selectedWidgetSource: null,
+        }));
+      });
+      return id;
+    },
+
+    // The sender already resolved formulas and item effects, so this skips the local derivations, automations and undo history.
+    _applyRemoteCharacter: (characterId, character) => {
+      useUndoStore.getState().clearHistory(characterId);
+      withEventsSuppressed(() => rawSet((state) => {
+        const widgetIds = new Set(character.sheets.flatMap((sheet) => sheet.widgets.map((widget) => widget.id)));
+        const isActive = state.activeCharacterId === characterId;
+        const editingGone = isActive && state.editingWidgetId !== null && !widgetIds.has(state.editingWidgetId);
+        const selectedGone = isActive && state.selectedWidgetId !== null && !widgetIds.has(state.selectedWidgetId);
+        return {
+          characters: state.characters.map((entry) => entry.id === characterId ? character : entry),
+          ...(editingGone ? { editingWidgetId: null } : {}),
+          ...(selectedGone ? { selectedWidgetId: null, selectedWidgetSource: null } : {}),
+        };
+      }));
+    },
     
     undo: () => {
       const state = get();

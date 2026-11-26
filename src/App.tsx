@@ -12,6 +12,8 @@ import { useTelemetryStore } from './store/useTelemetryStore';
 import { useStorageWorkspaceStore } from './store/useStorageWorkspaceStore';
 import WorkspaceConflictDialog from './components/WorkspaceConflictDialog';
 import GoogleDriveAutoReconnect from './components/GoogleDriveAutoReconnect';
+import SessionDialog, { SessionIndicator } from './components/SessionDialog';
+import { clearJoinHash, readJoinIdFromLocation, useSessionStore } from './store/useSessionStore';
 
 interface SheetErrorBoundaryProps {
   children: ReactNode;
@@ -85,6 +87,20 @@ function App() {
   useEffect(() => {
     recordVisit();
   }, [activeCharacterId, recordVisit]);
+
+  // A join link (#join=<session id>) opens a confirmation once the workspace has loaded.
+  useEffect(() => {
+    if (!isWorkspaceHydrated) return;
+    const openJoinLink = () => {
+      const hostId = readJoinIdFromLocation();
+      if (!hostId) return;
+      clearJoinHash();
+      useSessionStore.getState().setPendingJoinId(hostId);
+    };
+    openJoinLink();
+    window.addEventListener('hashchange', openJoinLink);
+    return () => window.removeEventListener('hashchange', openJoinLink);
+  }, [isWorkspaceHydrated]);
 
   useEffect(() => {
     const visualViewport = window.visualViewport;
@@ -175,6 +191,8 @@ function App() {
       {!isSwitchingWorkspace && <DicePhysicsOverlay />}
       <DiceResultHost />
       <EventPromptHost />
+      <SessionIndicator />
+      <SessionDialog />
     </div>
   );
 }

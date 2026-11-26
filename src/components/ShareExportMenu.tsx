@@ -32,6 +32,8 @@ import {
 import { useDiceSettingsStore } from '../store/useDiceSettingsStore';
 import { useSheetSettingsStore } from '../store/useSheetSettingsStore';
 import { useTelemetryStore } from '../store/useTelemetryStore';
+import { useSessionStore } from '../store/useSessionStore';
+import { Users } from 'lucide-react';
 
 interface ShareExportMenuProps {
   character: Character;
@@ -113,6 +115,8 @@ export default function ShareExportMenu({
   const hideAttachedEdges = useSheetSettingsStore((state) => state.hideAttachedEdges);
   const setHideAttachedEdges = useSheetSettingsStore((state) => state.setHideAttachedEdges);
   const recordTelemetryEvent = useTelemetryStore((state) => state.recordEvent);
+  const sessionRole = useSessionStore((state) => state.role);
+  const openSessionDialog = useSessionStore((state) => state.openDialog);
   const [showSavePreset, setShowSavePreset] = useState(false);
   const [presetName, setPresetName] = useState(`${character.name} Preset`);
   const [includeTheme, setIncludeTheme] = useState(true);
@@ -350,6 +354,17 @@ export default function ShareExportMenu({
             >
               <span className="flex items-center gap-2"><DownloadIcon className="h-4 w-4" />Export Character</span>
             </button></Tooltip>}
+            <Tooltip content="Edit this character together with other people in real time" placement="below"><button
+              type="button"
+              data-tutorial="live-session-button"
+              onClick={() => {
+                openSessionDialog();
+                onOpenChange(false);
+              }}
+              className="w-full px-3 py-2 text-left text-sm font-body text-theme-ink hover:bg-theme-accent hover:text-theme-paper transition-colors"
+            >
+              <span className="flex items-center gap-2"><Users className="h-4 w-4" />{sessionRole === 'none' ? 'Live Session' : 'Live Session (active)'}</span>
+            </button></Tooltip>
             {!inlineActionIds.has('publish') && <Tooltip content="Submit an image-free preset to the community gallery" placement="below"><button
               type="button"
               onClick={() => {
