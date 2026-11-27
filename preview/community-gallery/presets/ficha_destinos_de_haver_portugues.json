@@ -1,0 +1,331 @@
+{
+  "name": "Ficha Destinos de Haver",
+  "theme": "classic-dark",
+  "sheets": [
+    {
+      "id": "5c01e2c7-b30d-4f57-ab9c-7563e323aae0",
+      "name": "Main",
+      "widgets": [
+        {
+          "id": "335c7f90-7c08-4022-8ca8-b0c92323cb33",
+          "type": "IMAGE",
+          "x": 130,
+          "y": -350,
+          "w": 320,
+          "h": 290,
+          "zIndex": 1957,
+          "data": {
+            "label": "",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "imageCropTop": 0,
+            "imageCropRight": 10.6,
+            "imageCropBottom": 21,
+            "imageCropLeft": 0,
+            "hideWidgetEditButton": false,
+            "hideImageTitle": false,
+            "imageTitleAlignment": "center",
+            "imageTitlePosition": "above",
+            "imageBorderStyle": "none",
+            "imageFrameColor": "#0c50e4",
+            "imageFrameThickness": 2
+          },
+          "listColumn": 0
+        },
+        {
+          "id": "65d9a755-59b1-41f4-a76b-552985894071",
+          "type": "NUMBER_DISPLAY",
+          "x": 450,
+          "y": -540,
+          "w": 100,
+          "h": 480,
+          "zIndex": 1954,
+          "data": {
+            "label": "Atributos",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "displayLayout": "vertical",
+            "showDisplayNumberMax": false,
+            "showDisplayNumberLabels": true,
+            "showSecondaryDisplayNumbers": false,
+            "displayNumbers": [
+              { "label": "Força", "value": 0, "secondaryValue": 0, "showPositiveSign": false, "valueLabel": "frc" },
+              { "label": "Agilidade", "value": 0, "secondaryValue": 0, "showPositiveSign": false },
+              { "label": "Vigor", "value": 0, "secondaryValue": 0, "showPositiveSign": false },
+              { "label": "Inteligência", "value": 0, "secondaryValue": 0, "showPositiveSign": false },
+              { "label": "Discernimento", "value": 0, "secondaryValue": 0, "showPositiveSign": false },
+              { "label": "Presença", "value": 0, "secondaryValue": 0, "showPositiveSign": false }
+            ],
+            "hideWidgetEditButton": true,
+            "showFieldControls": false,
+            "secondaryDisplayAutoCompute": false,
+            "secondaryDisplayModifierRanges": [
+              { "min": 1, "max": 1, "modifier": -5 },
+              { "min": 2, "max": 3, "modifier": -4 },
+              { "min": 4, "max": 5, "modifier": -3 },
+              { "min": 6, "max": 7, "modifier": -2 },
+              { "min": 8, "max": 9, "modifier": -1 },
+              { "min": 10, "max": 11, "modifier": 0 },
+              { "min": 12, "max": 13, "modifier": 1 },
+              { "min": 14, "max": 15, "modifier": 2 },
+              { "min": 16, "max": 17, "modifier": 3 },
+              { "min": 18, "max": 19, "modifier": 4 },
+              { "min": 20, "max": 21, "modifier": 5 },
+              { "min": 22, "max": 23, "modifier": 6 },
+              { "min": 24, "max": 25, "modifier": 7 },
+              { "min": 26, "max": 27, "modifier": 8 },
+              { "min": 28, "max": 29, "modifier": 9 },
+              { "min": 30, "max": 30, "modifier": 10 }
+            ]
+          },
+          "listColumn": 0
+        },
+        {
+          "id": "0f06eb55-7598-45fb-9491-e0c48d31c2d3",
+          "type": "HEALTH_BAR",
+          "x": 130,
+          "y": -60,
+          "w": 320,
+          "h": 90,
+          "zIndex": 1791,
+          "data": {
+            "label": "Vida",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showIncrementButtons": true,
+            "temporaryValue": 0,
+            "enableTemporaryHp": true,
+            "currentValue": 10,
+            "maxValue": 10,
+            "hideWidgetEditButton": false,
+            "fillColor": "#b30000"
+          },
+          "listColumn": 0
+        },
+        {
+          "id": "cf6a68af-c7f9-4c1c-8292-beb3b9bfed04",
+          "type": "HEALTH_BAR",
+          "x": 130,
+          "y": 30,
+          "w": 320,
+          "h": 90,
+          "zIndex": 1789,
+          "data": {
+            "label": "Fios de Mana",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showIncrementButtons": true,
+            "temporaryValue": 0,
+            "enableTemporaryHp": true,
+            "fillColor": "#004ffa",
+            "hideWidgetHeader": false,
+            "increment": 1,
+            "currentValue": 10,
+            "maxValue": 10
+          },
+          "listColumn": 0
+        },
+        {
+          "id": "d34c070f-86df-4f39-8031-443b324e7b2a",
+          "type": "INVENTORY",
+          "x": 130,
+          "y": 430,
+          "w": 320,
+          "h": 520,
+          "zIndex": 1779,
+          "data": {
+            "label": "Inventário",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "inventoryItems": [],
+            "inventoryDefaultFields": [
+              { "id": "05e803c6-2c81-44e2-ae3a-f89866da1c77", "name": "Weight", "type": "number", "defaultValue": "", "reserved": "weight" },
+              { "id": "f32bd34d-5194-434d-afd5-640541f7e873", "name": "Value", "type": "text", "defaultValue": "" },
+              { "id": "05aa6757-e32f-4a91-9d40-afc4442cecfb", "name": "Notes", "type": "text", "defaultValue": "" }
+            ],
+            "inventoryEncumbrance": { "enabled": true, "unit": "ESPAÇOS", "includeInGlobalLoad": true, "showGlobalCounter": false, "localCapacity": 12 },
+            "hideWidgetEditButton": true,
+            "showFieldControls": true,
+            "fieldLabels": {},
+            "fieldFormulas": { "localCapacity": "12 + @frc * 2" }
+          },
+          "listColumn": 0
+        },
+        {
+          "id": "2c9c4cb0-5a8e-446c-ba03-87ac7d58bd7f",
+          "type": "NUMBER_DISPLAY",
+          "x": 350,
+          "y": 250,
+          "w": 100,
+          "h": 90,
+          "zIndex": 1785,
+          "data": {
+            "label": "Movimento",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "displayLayout": "vertical",
+            "showDisplayNumberMax": false,
+            "displayNumbers": [{ "label": "HEX", "value": 0, "showPositiveSign": false, "secondaryValue": 0 }],
+            "hideWidgetEditButton": true,
+            "showFieldControls": false,
+            "hideWidgetHeader": false,
+            "showSecondaryDisplayNumbers": false
+          },
+          "listColumn": 0
+        },
+        {
+          "id": "7336d9d9-c9a0-44ce-8968-69ad6175d3ac",
+          "type": "TEXT",
+          "x": 850,
+          "y": -540,
+          "w": 380,
+          "h": 480,
+          "zIndex": 1948,
+          "data": { "label": "Características de Espécie", "value": 0, "items": [], "text": "", "richText": "<p></p>", "hideWidgetEditButton": false, "hideWidgetHeader": false },
+          "listColumn": 0
+        },
+        {
+          "id": "40a2abe4-afba-406f-9d25-5539d9a8ced0",
+          "type": "TEXT",
+          "x": 450,
+          "y": -60,
+          "w": 580,
+          "h": 1010,
+          "zIndex": 1959,
+          "data": { "label": "Habilidades de Classe", "value": 0, "items": [], "text": "", "richText": "<p></p>" },
+          "listColumn": 0
+        },
+        {
+          "id": "67355ef4-fff3-4826-85fa-faa66131799c",
+          "type": "TEXT",
+          "x": 1030,
+          "y": -60,
+          "w": 580,
+          "h": 1010,
+          "zIndex": 1953,
+          "data": { "label": "Habilidades de Subclasse", "value": 0, "items": [], "text": "", "richText": "<p></p>" },
+          "listColumn": 0
+        },
+        {
+          "id": "2bc4787f-f346-4f45-9d11-66499d07eaaf",
+          "type": "NUMBER_DISPLAY",
+          "x": 130,
+          "y": 340,
+          "w": 320,
+          "h": 90,
+          "zIndex": 1777,
+          "data": { "label": "Moedas", "value": 0, "items": [], "text": "", "displayNumbers": [{ "label": "", "value": 50, "showPositiveSign": false }], "hideWidgetEditButton": true, "showFieldControls": false },
+          "listColumn": 0
+        },
+        {
+          "id": "6bff329d-9f2c-49b4-ad4a-da93a9139572",
+          "type": "TEXT",
+          "x": 1230,
+          "y": -540,
+          "w": 380,
+          "h": 480,
+          "zIndex": 1949,
+          "data": { "label": "Competências", "value": 0, "items": [], "text": "\n", "richText": "<p></p><p></p>" },
+          "listColumn": 0
+        },
+        {
+          "id": "7f219bd9-fb12-4218-991e-25135fa78953",
+          "type": "STEP_DICE",
+          "x": 550,
+          "y": -150,
+          "w": 300,
+          "h": 90,
+          "zIndex": 1947,
+          "data": { "label": "Step Dice", "value": 0, "items": [], "text": "", "hideWidgetHeader": true, "stepDiceChain": ["1d4", "1d6", "1d8", "1d10", "1d12"], "stepDiceItems": [{ "name": "Competência Parcial", "currentStep": 0 }, { "name": "Competência Total", "currentStep": 1 }] },
+          "listColumn": 0
+        },
+        {
+          "id": "797378e3-eab5-429d-ace3-7721cc1969fd",
+          "type": "LIST",
+          "x": 550,
+          "y": -540,
+          "w": 300,
+          "h": 250,
+          "zIndex": 1937,
+          "data": { "label": "Abordagens", "value": 0, "items": ["Cuidadosa", "Agressiva", "Criativa", "Metódica", "Instintiva", "Sutil", "Audaciosa"], "text": "", "itemCount": 7, "showFieldControls": false, "hideWidgetEditButton": true },
+          "listColumn": 0
+        },
+        {
+          "id": "00d760ba-c5d3-4b6f-93e2-f41fb6ac4224",
+          "type": "LIST",
+          "x": 550,
+          "y": -290,
+          "w": 300,
+          "h": 140,
+          "zIndex": 1941,
+          "data": { "label": "Ações de Resistência", "value": 0, "items": ["Solidez", "Lucidez", "Esquiva", "", ""], "text": "", "hideWidgetEditButton": true, "showFieldControls": false, "itemCount": 3 },
+          "listColumn": 0
+        },
+        {
+          "id": "f11f9978-321c-4b7d-a34d-72a3d3988324",
+          "type": "NUMBER_DISPLAY",
+          "x": 130,
+          "y": 250,
+          "w": 220,
+          "h": 90,
+          "zIndex": 1784,
+          "data": { "label": "Discernimento Continuo", "value": 0, "items": [], "text": "", "hideWidgetEditButton": true, "showFieldControls": false, "displayNumbers": [{ "label": "DC", "value": 0 }] },
+          "listColumn": 0
+        },
+        {
+          "id": "057b492d-b590-466e-9ce5-bbbcce538166",
+          "type": "MIXED_FIELDS",
+          "x": 130,
+          "y": 120,
+          "w": 320,
+          "h": 130,
+          "zIndex": 1880,
+          "data": { "label": "Proteção", "value": 0, "items": [], "text": "", "mixedFields": [{ "type": "text", "name": "Proteção Base", "value": "7" }, { "type": "text", "name": "Armadura", "value": "" }, { "type": "number", "name": "Proteção Total", "value": 7, "showPositiveSign": false }], "labelWidth": 33, "itemSpacing": 0, "hideWidgetEditButton": true, "showFieldControls": false },
+          "listColumn": 0
+        },
+        {
+          "id": "4e38aa37-a01a-422d-95aa-f8c3aae26738",
+          "type": "TEXT",
+          "x": -450,
+          "y": -540,
+          "w": 580,
+          "h": 570,
+          "zIndex": 1956,
+          "data": { "label": "Notas", "value": 0, "items": [], "text": "", "richText": "<p></p>" },
+          "listColumn": 0
+        },
+        {
+          "id": "d6afadfe-97e1-471b-bb34-b39f054ccf81",
+          "type": "MIXED_FIELDS",
+          "x": 130,
+          "y": -540,
+          "w": 320,
+          "h": 190,
+          "zIndex": 1933,
+          "data": { "label": "Mixed Fields", "value": 0, "items": [], "text": "", "mixedFields": [{ "type": "number", "name": "Nível", "value": 1, "valueLabel": "nvl" }, { "type": "text", "name": "Espécie", "value": "" }, { "type": "text", "name": "Origens", "value": "" }, { "type": "text", "name": "Classe", "value": "" }, { "type": "text", "name": "Subclasse", "value": "" }], "labelWidth": 33, "itemSpacing": 0, "hideWidgetEditButton": true, "showFieldControls": false },
+          "listColumn": 0
+        },
+        {
+          "id": "742e353d-c58b-4959-aa13-7446d10b2f0b",
+          "type": "TEXT",
+          "x": -450,
+          "y": 30,
+          "w": 580,
+          "h": 920,
+          "zIndex": 1903,
+          "data": { "label": "Magias", "value": 0, "items": [], "text": "", "richText": "<p></p>" },
+          "listColumn": 0
+        }
+      ],
+      "cardTableUnhostedCards": []
+    }
+  ],
+  "activeSheetId": "5c01e2c7-b30d-4f57-ab9c-7563e323aae0",
+  "gameSystem": "Destinos de Haver"
+}

@@ -1,0 +1,403 @@
+{
+  "name": "NAME NAME",
+  "sheets": [
+    {
+      "id": "55271603-0f43-4d5c-bb1c-4aed8c68797d",
+      "name": "Main",
+      "widgets": [
+        {
+          "id": "b6c5e0cc-53cc-4432-9c59-33dc9b6b768a",
+          "type": "IMAGE",
+          "x": 1050,
+          "y": 120,
+          "w": 330,
+          "h": 240,
+          "zIndex": 822,
+          "data": {
+            "label": "Name Name",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "imageCropTop": 0,
+            "imageCropRight": 6.4,
+            "imageCropBottom": 47.7,
+            "imageCropLeft": 18.2,
+            "imageTitleAlignment": "center",
+            "imageTitlePosition": "below",
+            "imageShape": "rectangle",
+            "imageBorderStyle": "none",
+            "imageEffect": "moody"
+          },
+          "groupId": "5981a612-ab15-47d7-b2a5-2e2f6ccdedbb",
+          "attachedTo": [
+            "293cd744-5963-47fe-af0a-081b9b47f010",
+            "720a5ff9-a762-4516-9daa-aa50a16f9447",
+            "1372892a-d482-4367-a6b3-134d764463db"
+          ]
+        },
+        {
+          "id": "8dd50a18-8f97-4008-b02b-6eeb85a295a0",
+          "type": "PROGRESS_BAR",
+          "x": 1710,
+          "y": 120,
+          "w": 200,
+          "h": 130,
+          "zIndex": 822,
+          "data": {
+            "label": "Infection",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "currentValue": 0,
+            "increment": 1,
+            "verticalBar": false,
+            "inlineLabel": false,
+            "showValues": true
+          },
+          "groupId": "5981a612-ab15-47d7-b2a5-2e2f6ccdedbb",
+          "attachedTo": [
+            "293cd744-5963-47fe-af0a-081b9b47f010",
+            "f441771f-961c-48f4-82d7-8fa0ad846e56"
+          ]
+        },
+        {
+          "id": "720a5ff9-a762-4516-9daa-aa50a16f9447",
+          "type": "HEALTH_BAR",
+          "x": 1050,
+          "y": 360,
+          "w": 330,
+          "h": 190,
+          "zIndex": 822,
+          "data": {
+            "label": "Health",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showIncrementButtons": true,
+            "temporaryValue": 0,
+            "enableTemporaryHp": false,
+            "maxValue": 100,
+            "currentValue": 100
+          },
+          "groupId": "5981a612-ab15-47d7-b2a5-2e2f6ccdedbb",
+          "attachedTo": [
+            "2dc8291c-4f2b-4660-9460-77026dad5969",
+            "b6c5e0cc-53cc-4432-9c59-33dc9b6b768a",
+            "1372892a-d482-4367-a6b3-134d764463db",
+            "3197f3cc-c9a2-4a61-9b1f-ca42cc261092"
+          ]
+        },
+        {
+          "id": "be91eafc-243b-41bc-a3c3-d1c324b6c1e5",
+          "type": "POOL",
+          "x": 1710,
+          "y": 470,
+          "w": 200,
+          "h": 360,
+          "zIndex": 822,
+          "data": {
+            "label": "Resources",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "poolResources": [
+              { "name": "Scrap", "max": 12, "current": 0, "style": "dots" },
+              { "name": "Cloth", "max": 12, "current": 4, "style": "boxes" },
+              { "name": "Food", "max": 15, "current": 9, "style": "diamonds" },
+              { "name": "Meds", "max": 6, "current": 2, "style": "dots" }
+            ],
+            "showPoolCount": false,
+            "showFieldControls": true
+          },
+          "groupId": "5981a612-ab15-47d7-b2a5-2e2f6ccdedbb",
+          "attachedTo": [
+            "2e302842-f5e1-469e-9fc2-7b049a4f1935",
+            "2dc8291c-4f2b-4660-9460-77026dad5969",
+            "a4272395-8c79-45b0-af2d-592aecda7a23"
+          ]
+        },
+        {
+          "id": "1372892a-d482-4367-a6b3-134d764463db",
+          "type": "INVENTORY",
+          "x": 800,
+          "y": 120,
+          "w": 250,
+          "h": 710,
+          "zIndex": 822,
+          "data": {
+            "label": "Inventory",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "inventoryItems": [],
+            "inventoryDefaultFields": [],
+            "inventoryEncumbrance": {
+              "enabled": false,
+              "unit": "kg",
+              "includeInGlobalLoad": true,
+              "showGlobalCounter": false
+            }
+          },
+          "groupId": "5981a612-ab15-47d7-b2a5-2e2f6ccdedbb",
+          "attachedTo": [
+            "720a5ff9-a762-4516-9daa-aa50a16f9447",
+            "b6c5e0cc-53cc-4432-9c59-33dc9b6b768a",
+            "5e71c8c1-e74a-48ce-8dfa-36219ca0c0bc",
+            "33493475-11f7-469f-bccd-6c654e827ec1",
+            "3197f3cc-c9a2-4a61-9b1f-ca42cc261092"
+          ]
+        },
+        {
+          "id": "1bc02604-252a-4ca9-8163-b9dddbafbd4c",
+          "type": "TEXT",
+          "x": 530,
+          "y": 830,
+          "w": 690,
+          "h": 690,
+          "zIndex": 812,
+          "data": {
+            "label": "Notes",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          }
+        },
+        {
+          "id": "2e302842-f5e1-469e-9fc2-7b049a4f1935",
+          "type": "PROGRESS_BAR",
+          "x": 1710,
+          "y": 360,
+          "w": 200,
+          "h": 110,
+          "zIndex": 822,
+          "data": {
+            "label": "Stress",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "maxValue": 50,
+            "currentValue": 0
+          },
+          "groupId": "5981a612-ab15-47d7-b2a5-2e2f6ccdedbb",
+          "attachedTo": [
+            "2dc8291c-4f2b-4660-9460-77026dad5969",
+            "be91eafc-243b-41bc-a3c3-d1c324b6c1e5",
+            "f441771f-961c-48f4-82d7-8fa0ad846e56"
+          ]
+        },
+        {
+          "id": "f441771f-961c-48f4-82d7-8fa0ad846e56",
+          "type": "PROGRESS_BAR",
+          "x": 1710,
+          "y": 250,
+          "w": 200,
+          "h": 110,
+          "zIndex": 822,
+          "data": {
+            "label": "EXP",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "showPercentage": false,
+            "showIncrementButtons": true,
+            "minValue": 0,
+            "maxValue": 100,
+            "currentValue": 0,
+            "verticalBar": false,
+            "inlineLabel": false
+          },
+          "groupId": "5981a612-ab15-47d7-b2a5-2e2f6ccdedbb",
+          "attachedTo": [
+            "2e302842-f5e1-469e-9fc2-7b049a4f1935",
+            "8dd50a18-8f97-4008-b02b-6eeb85a295a0",
+            "293cd744-5963-47fe-af0a-081b9b47f010"
+          ]
+        },
+        {
+          "id": "3197f3cc-c9a2-4a61-9b1f-ca42cc261092",
+          "type": "TOGGLE_GROUP",
+          "x": 1050,
+          "y": 550,
+          "w": 330,
+          "h": 280,
+          "zIndex": 822,
+          "data": {
+            "label": "Conditions",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "toggleItems": [],
+            "hideWidgetHeader": false,
+            "hideWidgetEditButton": false
+          },
+          "groupId": "5981a612-ab15-47d7-b2a5-2e2f6ccdedbb",
+          "attachedTo": [
+            "720a5ff9-a762-4516-9daa-aa50a16f9447",
+            "1372892a-d482-4367-a6b3-134d764463db",
+            "a4272395-8c79-45b0-af2d-592aecda7a23"
+          ]
+        },
+        {
+          "id": "5e71c8c1-e74a-48ce-8dfa-36219ca0c0bc",
+          "type": "NUMBER_DISPLAY",
+          "x": 530,
+          "y": 120,
+          "w": 270,
+          "h": 400,
+          "zIndex": 822,
+          "data": {
+            "label": "Stats",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "displayLayout": "vertical",
+            "numberBoxFixedAspectRatio": false,
+            "numberBoxScale": 100,
+            "showDisplayNumberMax": true,
+            "showDisplayNumberLabels": true,
+            "showSecondaryDisplayNumbers": true,
+            "displayNumbers": [
+              { "label": "Strength", "value": 3, "maxValue": 10, "minValue": 3, "secondaryValue": 0, "showPositiveSign": false },
+              { "label": "Endurance", "value": 3, "maxValue": 10, "minValue": 3, "secondaryValue": 0, "showPositiveSign": false },
+              { "label": "Speed", "value": 3, "maxValue": 10, "minValue": 3, "secondaryValue": 0, "showPositiveSign": false },
+              { "label": "Intelligence", "value": 3, "maxValue": 10, "secondaryValue": 0, "showPositiveSign": false, "minValue": 3 },
+              { "label": "Tech", "value": 3, "maxValue": 10, "secondaryValue": 0, "showPositiveSign": false, "minValue": 3 },
+              { "label": "Mechanical", "value": 3, "maxValue": 10, "minValue": 3, "secondaryValue": 0, "showPositiveSign": false }
+            ],
+            "secondaryDisplayAutoCompute": false,
+            "secondaryDisplayModifierRanges": [
+              { "min": 1, "max": 1, "modifier": -5 },
+              { "min": 2, "max": 3, "modifier": -4 },
+              { "min": 4, "max": 5, "modifier": -3 },
+              { "min": 6, "max": 7, "modifier": -2 },
+              { "min": 8, "max": 9, "modifier": -1 },
+              { "min": 10, "max": 11, "modifier": 0 },
+              { "min": 12, "max": 13, "modifier": 1 },
+              { "min": 14, "max": 15, "modifier": 2 },
+              { "min": 16, "max": 17, "modifier": 3 },
+              { "min": 18, "max": 19, "modifier": 4 },
+              { "min": 20, "max": 21, "modifier": 5 },
+              { "min": 22, "max": 23, "modifier": 6 },
+              { "min": 24, "max": 25, "modifier": 7 },
+              { "min": 26, "max": 27, "modifier": 8 },
+              { "min": 28, "max": 29, "modifier": 9 },
+              { "min": 30, "max": 30, "modifier": 10 }
+            ],
+            "hideWidgetHeader": false
+          },
+          "groupId": "5981a612-ab15-47d7-b2a5-2e2f6ccdedbb",
+          "attachedTo": [
+            "1372892a-d482-4367-a6b3-134d764463db",
+            "33493475-11f7-469f-bccd-6c654e827ec1"
+          ]
+        },
+        {
+          "id": "33493475-11f7-469f-bccd-6c654e827ec1",
+          "type": "LIST",
+          "x": 530,
+          "y": 520,
+          "w": 270,
+          "h": 310,
+          "zIndex": 822,
+          "data": {
+            "label": "List",
+            "value": 0,
+            "items": [],
+            "text": ""
+          },
+          "groupId": "5981a612-ab15-47d7-b2a5-2e2f6ccdedbb",
+          "attachedTo": [
+            "1372892a-d482-4367-a6b3-134d764463db",
+            "5e71c8c1-e74a-48ce-8dfa-36219ca0c0bc"
+          ]
+        },
+        {
+          "id": "2678de27-c0b4-4199-97cb-4073b657c91f",
+          "type": "DICE_TRAY",
+          "x": 1220,
+          "y": 830,
+          "w": 690,
+          "h": 690,
+          "zIndex": 811,
+          "data": {
+            "label": "Dice Tray",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "autoShowTrayRollDetails": false
+          }
+        },
+        {
+          "id": "a4272395-8c79-45b0-af2d-592aecda7a23",
+          "type": "DICE_ROLLER",
+          "x": 1380,
+          "y": 550,
+          "w": 330,
+          "h": 280,
+          "zIndex": 822,
+          "data": {
+            "label": "Roll",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "autoShowRollDetails": false
+          },
+          "groupId": "5981a612-ab15-47d7-b2a5-2e2f6ccdedbb",
+          "attachedTo": [
+            "be91eafc-243b-41bc-a3c3-d1c324b6c1e5",
+            "2dc8291c-4f2b-4660-9460-77026dad5969",
+            "3197f3cc-c9a2-4a61-9b1f-ca42cc261092"
+          ]
+        },
+        {
+          "id": "293cd744-5963-47fe-af0a-081b9b47f010",
+          "type": "TEXT",
+          "x": 1380,
+          "y": 120,
+          "w": 330,
+          "h": 240,
+          "zIndex": 822,
+          "data": {
+            "label": "Bio",
+            "value": 0,
+            "items": [],
+            "text": "",
+            "richText": "<p></p>"
+          },
+          "groupId": "5981a612-ab15-47d7-b2a5-2e2f6ccdedbb",
+          "attachedTo": [
+            "8dd50a18-8f97-4008-b02b-6eeb85a295a0",
+            "2e302842-f5e1-469e-9fc2-7b049a4f1935",
+            "b6c5e0cc-53cc-4432-9c59-33dc9b6b768a",
+            "f441771f-961c-48f4-82d7-8fa0ad846e56"
+          ]
+        },
+        {
+          "id": "25cec1c1-eb59-424c-86c1-5cc66054cfd1",
+          "type": "INITIATIVE_TRACKER",
+          "x": 1380,
+          "y": 360,
+          "w": 330,
+          "h": 190,
+          "zIndex": 800,
+          "data": {
+            "label": "Initiative Tracker",
+            "value": 0,
+            "items": [],
+            "text": ""
+          }
+        }
+      ]
+    }
+  ],
+  "activeSheetId": "55271603-0f43-4d5c-bb1c-4aed8c68797d",
+  "theme": "classic-dark",
+  "gameSystem": "Soodor Survival"
+}
