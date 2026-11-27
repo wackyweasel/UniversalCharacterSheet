@@ -487,6 +487,14 @@
       "description": "Wild west",
       "file": "presets/rootin_tootin.json",
       "gameSystem": "Rootin Tootin"
+    },
+    {
+      "id": "62",
+      "name": "Cyberpunk Campaign",
+      "author": "@Chesh_Ire",
+      "description": "For private campaign hosted by me",
+      "file": "presets/cyberpunk_campaign.json",
+      "gameSystem": "HOMEBREW"
     }
   ],
   "themes": [
